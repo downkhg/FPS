@@ -15,14 +15,21 @@ public class BulletScript : MonoBehaviour {
 	[Tooltip("Put Weapon layer and Player layer to ignore bullet raycast.")]
 	public LayerMask ignoreLayer;
 
+    private void Start()
+    {
+		Debug.Log($"{gameObject.name}.Start()");
+    }
 	/*
 	* Uppon bullet creation with this script attatched,
 	* bullet creates a raycast which searches for corresponding tags.
 	* If raycast finds somethig it will create a decal of corresponding tag.
 	*/
-	void Update () {
+	Rigidbody rigidBodyHit;
 
-		if(Physics.Raycast(transform.position, transform.forward,out hit, maxDistance, ~ignoreLayer)){
+    void Update () {
+      
+
+        if (Physics.Raycast(transform.position, transform.forward,out hit, maxDistance, ~ignoreLayer)){
 			if(decalHitWall){
 				if(hit.transform.tag == "LevelPart"){
 					Instantiate(decalHitWall, hit.point + hit.normal * floatInfrontOfWall, Quaternion.LookRotation(hit.normal));
@@ -32,10 +39,31 @@ public class BulletScript : MonoBehaviour {
 					Instantiate(bloodEffect, hit.point, Quaternion.LookRotation(hit.normal));
 					Destroy(gameObject);
 				}
+				if(hit.transform.tag == "PhysicObject")
+				{
+					Rigidbody rigidBodyHit = hit.transform.GetComponent<Rigidbody>();
+
+                    RigidBodyPhysic(rigidBodyHit, transform.forward, 100);
+
+                    Debug.Log($"BulletScript: {hit.transform.gameObject.name}");
+				}
 			}		
 			Destroy(gameObject);
 		}
 		Destroy(gameObject, 0.1f);
+
+
+	}
+
+
+	void RigidBodyPhysic(Rigidbody rigidbody, Vector3 vShotDir, float power)
+	{
+		if (rigidbody == null)
+		{
+			Debug.Log("RigidBodyPhysic is null");
+			return;
+        }
+		rigidbody.AddForce(vShotDir * power);
 	}
 
 }

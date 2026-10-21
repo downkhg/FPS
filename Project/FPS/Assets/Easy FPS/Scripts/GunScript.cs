@@ -340,12 +340,14 @@ public class GunScript : MonoBehaviour {
 		if (!meeleAttack) {
 			if (currentStyle == GunStyles.nonautomatic) {
 				if (Input.GetButtonDown ("Fire1")) {
+					Debug.Log("Fire!");
 					ShootMethod ();
 				}
 			}
 			if (currentStyle == GunStyles.automatic) {
 				if (Input.GetButton ("Fire1")) {
-					ShootMethod ();
+                    Debug.Log("Fire2");
+                    ShootMethod ();
 				}
 			}
 		}
@@ -422,11 +424,13 @@ public class GunScript : MonoBehaviour {
 
 			if(bulletsInTheGun > 0){
 
-				int randomNumberForMuzzelFlash = Random.Range(0,5);
+				int randomNumberForMuzzelFlash = 0;// Random.Range(0,5);
 				if (bullet)
-					Instantiate (bullet, bulletSpawnPlace.transform.position, bulletSpawnPlace.transform.rotation);
+				{
+					Instantiate(bullet, bulletSpawnPlace.transform.position, bulletSpawnPlace.transform.rotation);
+				}
 				else
-					print ("Missing the bullet prefab");
+					print("Missing the bullet prefab");
 				holdFlash = Instantiate(muzzelFlash[randomNumberForMuzzelFlash], muzzelSpawn.transform.position /*- muzzelPosition*/, muzzelSpawn.transform.rotation * Quaternion.Euler(0,0,90) ) as GameObject;
 				holdFlash.transform.parent = muzzelSpawn.transform;
 				if (shoot_sound_source)
