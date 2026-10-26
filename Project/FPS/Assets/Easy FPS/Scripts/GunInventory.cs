@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -11,11 +11,6 @@ public class GunInventory : MonoBehaviour {
 	public GameObject currentGun;
 	private Animator currentHAndsAnimator;
 	private int currentGunCounter = 0;
-
-	/// <summary>
-	/// 현재 장착된 무기의 GunScript 컴포넌트 참조입니다.
-	/// </summary>
-	public GunScript CurrentGunScript { get; private set; }
 
 	[Tooltip("Put Strings of weapon objects from Resources Folder.")]
 	public List<string> gunsIHave = new List<string>();
@@ -52,11 +47,21 @@ public class GunInventory : MonoBehaviour {
 	 * overcomes 0.0f. 
 	 */
 	void Update(){
+
 		switchWeaponCooldown += 1 * Time.deltaTime;
+		if(switchWeaponCooldown > 1.2f && Input.GetKey(KeyCode.LeftShift) == false){
+			Create_Weapon();
+		}
+
 	}
+
 
 	/*
 	 * Grabing the icons from the Resources/Weapo_Icons/ -> gun name of the image.
+	 * (!!!!!!!1!READ IMPORTANT) 
+	 * the weapon image to respond the weapon must have the same name as the WEAPON  with the extension _img.
+	 * So if the gun prefab is called "Sniper_Piper" the corresponding image must be located in the location form previous,
+	 * with the name "Sniper_Piper_img".
 	 */
 	IEnumerator UpdateIconsFromResources(){
 		yield return new WaitForEndOfFrame ();
@@ -65,54 +70,56 @@ public class GunInventory : MonoBehaviour {
 		for(int i = 0; i < gunsIHave.Count; i++){
 			icons[i] = (Texture) Resources.Load("Weap_Icons/" + gunsIHave[i].ToString() + "_img");
 		}
-	}
 
-	/// <summary>
-	/// 현재 무기를 교체할 수 있는 상태인지 확인합니다.
-	/// </summary>
-	public bool CanSwitchWeapon(bool isSprintHeld = false){
-		return switchWeaponCooldown > 1.2f && !isSprintHeld && gunsIHave.Count > 0;
-	}
-
-	/// <summary>
-	/// 이전/다음 무기로 순환 교체합니다. (direction > 0: 다음 무기, direction < 0: 이전 무기)
-	/// </summary>
-	public bool CycleWeaponAction(int direction, bool isSprintHeld = false){
-		if (direction == 0 || !CanSwitchWeapon(isSprintHeld))
-			return false;
-
-		switchWeaponCooldown = 0;
-		if (direction > 0) {
-			currentGunCounter++;
-			if (currentGunCounter > gunsIHave.Count - 1) {
-				currentGunCounter = 0;
-			}
-		} else {
-			currentGunCounter--;
-			if (currentGunCounter < 0) {
-				currentGunCounter = gunsIHave.Count - 1;
-			}
-		}
-
-		StartCoroutine("Spawn", currentGunCounter);
-		return true;
-	}
-
-	/// <summary>
-	/// 특정 슬롯 인덱스(0부터 시작)의 무기로 교체합니다.
-	/// </summary>
-	public bool SelectWeaponAction(int slotIndex, bool isSprintHeld = false){
-		if (slotIndex < 0 || slotIndex >= gunsIHave.Count || slotIndex == currentGunCounter || !CanSwitchWeapon(isSprintHeld))
-			return false;
-
-		switchWeaponCooldown = 0;
-		currentGunCounter = slotIndex;
-		StartCoroutine("Spawn", currentGunCounter);
-		return true;
 	}
 
 	/*
-	 * This method is called upon weapon switching,
+	 * If used scroll mousewheel or arrows up and down the player will change weapon.
+	 * GunPlaceSpawner is child of Player gameObject, where the gun is going to spawn and transition to our
+	 * gun properties value.
+	 */
+	void Create_Weapon(){
+
+		/*
+		 * Scrolling wheel waepons changing
+		 */
+		if(Input.GetKeyDown(KeyCode.UpArrow) || Input.GetAxis("Mouse ScrollWheel") > 0){
+			switchWeaponCooldown = 0;
+
+			currentGunCounter++;
+			if(currentGunCounter > gunsIHave.Count-1){
+				currentGunCounter = 0;
+			}
+			StartCoroutine("Spawn",currentGunCounter);
+		}
+		if(Input.GetKeyDown(KeyCode.DownArrow) || Input.GetAxis("Mouse ScrollWheel") < 0){
+			switchWeaponCooldown = 0;
+
+			currentGunCounter--;
+			if(currentGunCounter < 0){
+				currentGunCounter = gunsIHave.Count-1;
+			}
+			StartCoroutine("Spawn",currentGunCounter);
+		}
+
+		/*
+		 * Keypad numbers
+		 */
+		if(Input.GetKeyDown(KeyCode.Alpha1) && currentGunCounter != 0){
+			switchWeaponCooldown = 0;
+			currentGunCounter = 0;
+			StartCoroutine("Spawn",currentGunCounter);
+		}
+		if(Input.GetKeyDown(KeyCode.Alpha2) && currentGunCounter != 1){
+			switchWeaponCooldown = 0;
+			currentGunCounter = 1;
+			StartCoroutine("Spawn",currentGunCounter);
+		}
+
+	}
+
+	/*
+	 * This method is called from Create_Weapon() upon pressing arrow up/down or scrolling the mouse wheel,
 	 * It will check if we carry a gun and destroy it, and its then going to load a gun prefab from our Resources Folder.
 	 */
 	IEnumerator Spawn(int _redniBroj){
@@ -123,40 +130,37 @@ public class GunInventory : MonoBehaviour {
 		if(currentGun){
 			if(currentGun.name.Contains("Gun")){
 
-				if (currentHAndsAnimator)
-					currentHAndsAnimator.SetBool("changingWeapon", true);
+				currentHAndsAnimator.SetBool("changingWeapon", true);
 
-				yield return new WaitForSeconds(0.8f);
+				yield return new WaitForSeconds(0.8f);//0.8 time to change waepon, but since there is no change weapon animation there is no need to wait fo weapon taken down
 				Destroy(currentGun);
-				CurrentGunScript = null;
 
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-				currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
+				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
 				AssignHandsAnimator(currentGun);
 			}
 			else if(currentGun.name.Contains("Sword")){
-				if (currentHAndsAnimator)
-					currentHAndsAnimator.SetBool("changingWeapon", true);
-				yield return new WaitForSeconds(0.25f);
+				currentHAndsAnimator.SetBool("changingWeapon", true);
+				yield return new WaitForSeconds(0.25f);//0.5f
 
-				if (currentHAndsAnimator)
-					currentHAndsAnimator.SetBool("changingWeapon", false);
+				currentHAndsAnimator.SetBool("changingWeapon", false);
 
-				yield return new WaitForSeconds(0.6f);
+				yield return new WaitForSeconds(0.6f);//1
 				Destroy(currentGun);
-				CurrentGunScript = null;
 
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-				currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
+				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
 				AssignHandsAnimator(currentGun);
 			}
 		}
 		else{
 			GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-			currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
+			currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
 
 			AssignHandsAnimator(currentGun);
 		}
+
+
 	}
 
 
@@ -164,12 +168,8 @@ public class GunInventory : MonoBehaviour {
 	* Assigns Animator to the script so we can use it in other scripts of a current gun.
 	*/
 	void AssignHandsAnimator(GameObject _currentGun){
-		if(_currentGun && _currentGun.name.Contains("Gun")){
-			CurrentGunScript = currentGun.GetComponent<GunScript>();
-			if (CurrentGunScript != null) {
-				CurrentGunScript.InitializeOwner(gameObject);
-				currentHAndsAnimator = CurrentGunScript.handsAnimator;
-			}
+		if(_currentGun.name.Contains("Gun")){
+			currentHAndsAnimator = currentGun.GetComponent<GunScript>().handsAnimator;
 		}
 	}
 
@@ -229,6 +229,9 @@ public class GunInventory : MonoBehaviour {
 					icons[_number]);
 			}
 		}
+
+
+
 	}
 
 	/*

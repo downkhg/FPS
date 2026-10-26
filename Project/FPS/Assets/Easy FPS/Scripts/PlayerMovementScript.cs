@@ -1,7 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMovementScript : MonoBehaviour {
 	Rigidbody rb;
@@ -15,65 +14,32 @@ public class PlayerMovementScript : MonoBehaviour {
 	[Tooltip("Position of the camera inside the player")]
 	[HideInInspector]public Vector3 cameraPosition;
 
-	[Header("Marionette Movement Input State")]
-	[SerializeField] private Vector2 currentMoveInput;
-	[SerializeField] private bool currentCrouchInput;
-
-	[Tooltip("Default walking speed when no gun overrides it")]
-	public int defaultWalkingSpeed = 3;
-	[Tooltip("Default running speed when no gun overrides it")]
-	public int defaultRunningSpeed = 5;
-
 	/*
 	 * Getting the Players rigidbody component.
 	 * And grabbing the mainCamera from Players child transform.
 	 */
 	void Awake(){
 		rb = GetComponent<Rigidbody>();
-		Transform camTransform = transform.Find("Main Camera");
-		if (camTransform != null) {
-			cameraMain = camTransform;
-			Transform spawnTransform = cameraMain.Find("BulletSpawn");
-			if (spawnTransform != null) {
-				bulletSpawn = spawnTransform;
-			}
-		}
+		cameraMain = transform.Find("Main Camera").transform;
+		bulletSpawn = cameraMain.Find ("BulletSpawn").transform;
 		ignoreLayer = 1 << LayerMask.NameToLayer ("Player");
 
-		// 마리오네트 허브가 없으면 자동으로 부착하여 기존 프리팹/씬 호환성 보장
-		if (GetComponent<PlayerMarionette>() == null) {
-			gameObject.AddComponent<PlayerMarionette>();
-		}
 	}
-
 	private Vector3 slowdownV;
 	private Vector2 horizontalMovement;
-
 	/*
-	* Raycasting for meele attacks and movement physics handling here.
+	* Raycasting for meele attacks and input movement handling here.
 	*/
 	void FixedUpdate(){
-		RaycastForMeleeAttacksAction ();
+		RaycastForMeleeAttacks ();
 
 		PlayerMovementLogic ();
 	}
-
-	/// <summary>
-	/// 컨트롤러/마리오네트로부터 전후좌우 이동 입력 벡터(x: Horizontal, y: Vertical)를 전달받습니다.
-	/// </summary>
-	public void MoveAction(Vector2 moveInput){
-		currentMoveInput = Vector2.ClampMagnitude(moveInput, 1f);
-	}
-
 	/*
 	* Accordingly to input adds force and if magnitude is bigger it will clamp it.
 	* If player leaves keys it will deaccelerate
 	*/
-	public void PlayerMovementLogic(){
-		PlayerMovementLogic(currentMoveInput);
-	}
-
-	public void PlayerMovementLogic(Vector2 moveInput){
+	void PlayerMovementLogic(){
 		currentSpeed = rb.linearVelocity.magnitude;
 		horizontalMovement = new Vector2 (rb.linearVelocity.x, rb.linearVelocity.z);
 		if (horizontalMovement.magnitude > maxSpeed){
@@ -93,80 +59,47 @@ public class PlayerMovementScript : MonoBehaviour {
 		}
 
 		if (grounded) {
-			rb.AddRelativeForce (moveInput.x * accelerationSpeed * Time.deltaTime, 0, moveInput.y * accelerationSpeed * Time.deltaTime);
+			rb.AddRelativeForce (Input.GetAxis ("Horizontal") * accelerationSpeed * Time.deltaTime, 0, Input.GetAxis ("Vertical") * accelerationSpeed * Time.deltaTime);
 		} else {
-			rb.AddRelativeForce (moveInput.x * accelerationSpeed / 2 * Time.deltaTime, 0, moveInput.y * accelerationSpeed / 2 * Time.deltaTime);
-		}
+			rb.AddRelativeForce (Input.GetAxis ("Horizontal") * accelerationSpeed / 2 * Time.deltaTime, 0, Input.GetAxis ("Vertical") * accelerationSpeed / 2 * Time.deltaTime);
 
+		}
 		/*
 		 * Slippery issues fixed here
 		 */
-		if (moveInput.x != 0 || moveInput.y != 0) {
+		if (Input.GetAxis ("Horizontal") != 0 || Input.GetAxis ("Vertical") != 0) {
 			deaccelerationSpeed = 0.5f;
 		} else {
 			deaccelerationSpeed = 0.1f;
 		}
 	}
-
-	/// <summary>
-	/// 기본 점프 힘(jumpForce)으로 점프를 수행합니다.
-	/// </summary>
-	public bool JumpAction()
-	{
-		return JumpAction(jumpForce);
-	}
-
 	/*
-	* Handles jumping and adds the force and sounds.
+	* Handles jumping and ads the force and sounds.
 	*/
-	public bool JumpAction(float customJumpForce)
-	{
-		if (!grounded)
-			return false;
-
-		rb.AddRelativeForce(Vector3.up * customJumpForce);
-		if (_jumpSound)
-			_jumpSound.Play();
-		else
-			print("Missig jump sound.");
-		if (_walkSound) _walkSound.Stop();
-		if (_runSound) _runSound.Stop();
-		return true;
-	}
-
-	/// <summary>
-	/// 달리기 가능 조건과 토글 입력에 따라 최대 이동 속도(maxSpeed)를 전환합니다.
-	/// </summary>
-	public void SprintAction(bool canSprint, bool sprintToggleDown, int walkSpeed, int runSpeed)
-	{
-		if (canSprint) {
-			if (sprintToggleDown) {
-				if (maxSpeed == walkSpeed) {
-					maxSpeed = runSpeed;
-				} else {
-					maxSpeed = walkSpeed;
-				}
-			}
-		} else {
-			maxSpeed = walkSpeed;
+	void Jumping(){
+		if (Input.GetKeyDown (KeyCode.Space) && grounded) {
+			rb.AddRelativeForce (Vector3.up * jumpForce);
+			if (_jumpSound)
+				_jumpSound.Play ();
+			else
+				print ("Missig jump sound.");
+			_walkSound.Stop ();
+			_runSound.Stop ();
 		}
 	}
-
-	/// <summary>
-	/// AI나 외부 컨트롤러에서 달리기 여부를 직접 지정할 때 사용합니다.
-	/// </summary>
-	public void SetSprintState(bool isSprinting, int walkSpeed, int runSpeed)
-	{
-		maxSpeed = isSprinting ? runSpeed : walkSpeed;
-	}
-
 	/*
 	* Update loop calling other stuff
 	*/
 	void Update(){
-		ApplyCrouchScale(currentCrouchInput);
+		
+
+		Jumping ();
+
+		Crouching();
 
 		WalkingSound ();
+
+
 	}//end update
 
 	/*
@@ -176,12 +109,17 @@ public class PlayerMovementScript : MonoBehaviour {
 		if (_walkSound && _runSound) {
 			if (RayCastGrounded ()) { //for walk sounsd using this because suraface is not straigh			
 				if (currentSpeed > 1) {
+					//				print ("unutra sam");
 					if (maxSpeed == 3) {
+						//	print ("tu sem");
 						if (!_walkSound.isPlaying) {
+							//	print ("playam hod");
 							_walkSound.Play ();
 							_runSound.Stop ();
 						}					
 					} else if (maxSpeed == 5) {
+						//	print ("NE tu sem");
+
 						if (!_runSound.isPlaying) {
 							_walkSound.Stop ();
 							_runSound.Play ();
@@ -209,36 +147,29 @@ public class PlayerMovementScript : MonoBehaviour {
 		if(Physics.Raycast(transform.position, transform.up *-1f, out groundedInfo, 1, ~ignoreLayer)){
 			Debug.DrawRay (transform.position, transform.up * -1f, Color.red, 0.0f);
 			if(groundedInfo.transform != null){
+				//print ("vracam true");
 				return true;
 			}
 			else{
+				//print ("vracam false");
 				return false;
 			}
 		}
+		//print ("nisam if dosao");
 
 		return false;
 	}
 
-	/// <summary>
-	/// 컨트롤러/마리오네트에서 앉기 상태를 설정합니다.
-	/// </summary>
-	public bool CrouchingAction(bool keyInput)
-	{
-		currentCrouchInput = keyInput;
-		return ApplyCrouchScale(currentCrouchInput);
-	}
-
-	private bool ApplyCrouchScale(bool isCrouching)
-	{
-		if (isCrouching)
-		{
-			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1, 0.6f, 1), Time.deltaTime * 15);
-			return true;
+	/*
+	* If player toggle the crouch it will scale the player to appear that is crouching
+	*/
+	void Crouching(){
+		if(Input.GetKey(KeyCode.C)){
+			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,0.6f,1), Time.deltaTime * 15);
 		}
-		else
-		{
-			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1, 1, 1), Time.deltaTime * 15);
-			return false;
+		else{
+			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,1,1), Time.deltaTime * 15);
+
 		}
 	}
 
@@ -295,17 +226,18 @@ public class PlayerMovementScript : MonoBehaviour {
 
 
 	public bool been_to_meele_anim = false;
-	public void RaycastForMeleeAttacksAction(){
-		if (bulletSpawn == null)
-			return;
+	private void RaycastForMeleeAttacks(){
+
+
+
 
 		if (meleeAttack_cooldown > -5) {
 			meleeAttack_cooldown -= 1 * Time.deltaTime;
 		}
 
-		GunInventory inventory = GetComponent<GunInventory>();
-		if (inventory && inventory.currentGun) {
-			if (inventory.currentGun.GetComponent<GunScript> ()) 
+
+		if (GetComponent<GunInventory> ().currentGun) {
+			if (GetComponent<GunInventory> ().currentGun.GetComponent<GunScript> ()) 
 				currentWeapo = "gun";
 		}
 
@@ -332,29 +264,29 @@ public class PlayerMovementScript : MonoBehaviour {
 		Debug.DrawRay (ray8.origin, ray8.direction, Color.yellow);
 		Debug.DrawRay (ray9.origin, ray9.direction, Color.yellow);
 
-		if (inventory && inventory.currentGun) {
-			GunScript gunScript = inventory.currentGun.GetComponent<GunScript>();
-			if (gunScript != null) {
-				if (gunScript.meeleAttack == false) {
-					been_to_meele_anim = false;
-				}
-				if (gunScript.meeleAttack == true && been_to_meele_anim == false) {
-					been_to_meele_anim = true;
-					StartCoroutine ("MeeleAttackWeaponHit");
-				}
+		if (GetComponent<GunInventory> ().currentGun) {
+			if (GetComponent<GunInventory> ().currentGun.GetComponent<GunScript> ().meeleAttack == false) {
+				been_to_meele_anim = false;
+			}
+			if (GetComponent<GunInventory> ().currentGun.GetComponent<GunScript> ().meeleAttack == true && been_to_meele_anim == false) {
+				been_to_meele_anim = true;
+				//	if (isRunning == false) {
+				StartCoroutine ("MeeleAttackWeaponHit");
+				//	}
 			}
 		}
 
 	}
 
 	/*
-	 *Method that is called if the waepon hit animation has been triggered the first time via melee action
+	 *Method that is called if the waepon hit animation has been triggered the first time via Q input
 	 *and if is, it will search for target and make damage
 	 */
 	IEnumerator MeeleAttackWeaponHit(){
 		if (Physics.Raycast (ray1, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray2, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray3, out hitInfo, 2f, ~ignoreLayer)
 			|| Physics.Raycast (ray4, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray5, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray6, out hitInfo, 2f, ~ignoreLayer)
 			|| Physics.Raycast (ray7, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray8, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray9, out hitInfo, 2f, ~ignoreLayer)) {
+			//Debug.DrawRay (bulletSpawn.position, bulletSpawn.forward + (bulletSpawn.right*0.2f), Color.green, 0.0f);
 			if (hitInfo.transform.tag=="Dummie") {
 				Transform _other = hitInfo.transform.root.transform;
 				if (_other.transform.tag == "Dummie") {
@@ -407,3 +339,4 @@ public class PlayerMovementScript : MonoBehaviour {
 	[Tooltip("Run Sound player makes.")]
 	public AudioSource _runSound;
 }
+

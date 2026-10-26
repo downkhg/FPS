@@ -265,7 +265,7 @@ GameObject:
   - component: {fileID: 375445977}
   - component: {fileID: 375445976}
   m_Layer: 0
-  m_Name: LevelFloor
+  m_Name: Plane
   m_TagString: LevelPart
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -495,7 +495,7 @@ GameObject:
   - component: {fileID: 698383257}
   - component: {fileID: 698383256}
   m_Layer: 0
-  m_Name: LevelCube
+  m_Name: Cube
   m_TagString: LevelPart
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
