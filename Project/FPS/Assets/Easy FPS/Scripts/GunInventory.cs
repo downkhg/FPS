@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 
 public enum MenuStyle{
 	horizontal,vertical
@@ -25,20 +26,31 @@ public class GunInventory : MonoBehaviour {
 	 * Also will spawn a weapon upon start.
 	 */
 	void Awake(){
-		StartCoroutine("UpdateIconsFromResources");
+		//StartCoroutine("UpdateIconsFromResources");
 
-		StartCoroutine ("SpawnWeaponUponStart");//to start with a gun
+		//StartCoroutine ("SpawnWeaponUponStart");//to start with a gun
 
-		if (gunsIHave.Count == 0)
-			print ("No guns in the inventory");
+		//if (gunsIHave.Count == 0)
+		//	print ("No guns in the inventory");
+		Initialize();
 	}
+
+	public void Initialize()
+	{
+        StartCoroutine(UpdateIconsFromResources());
+
+        StartCoroutine(SpawnWeaponUponStart());//to start with a gun
+
+        if (gunsIHave.Count == 0)
+            print("No guns in the inventory");
+    }
 
 	/*
 	*Waits some time then calls for a waepon spawn
 	*/
 	IEnumerator SpawnWeaponUponStart(){
 		yield return new WaitForSeconds (0.5f);
-		StartCoroutine("Spawn",0);
+		StartCoroutine(Spawn(0));
 	}
 
 	/* 
@@ -66,12 +78,17 @@ public class GunInventory : MonoBehaviour {
 	IEnumerator UpdateIconsFromResources(){
 		yield return new WaitForEndOfFrame ();
 
-		icons = new Texture[gunsIHave.Count];
-		for(int i = 0; i < gunsIHave.Count; i++){
-			icons[i] = (Texture) Resources.Load("Weap_Icons/" + gunsIHave[i].ToString() + "_img");
-		}
+		UpdateIconsFromResouces();
+    }
 
-	}
+	void UpdateIconsFromResouces()
+	{
+        icons = new Texture[gunsIHave.Count];
+        for (int i = 0; i < gunsIHave.Count; i++)
+        {
+            icons[i] = (Texture)Resources.Load("Weap_Icons/" + gunsIHave[i].ToString() + "_img");
+        }
+    }
 
 	/*
 	 * If used scroll mousewheel or arrows up and down the player will change weapon.
@@ -138,6 +155,8 @@ public class GunInventory : MonoBehaviour {
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
 				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
 				AssignHandsAnimator(currentGun);
+				
+				Debug.Log("Instantiate:"+currentGun.name);
 			}
 			else if(currentGun.name.Contains("Sword")){
 				currentHAndsAnimator.SetBool("changingWeapon", true);
@@ -151,14 +170,16 @@ public class GunInventory : MonoBehaviour {
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
 				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
 				AssignHandsAnimator(currentGun);
-			}
+                Debug.Log("Instantiate:" + currentGun.name);
+            }
 		}
 		else{
 			GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
 			currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
 
 			AssignHandsAnimator(currentGun);
-		}
+            Debug.Log("Instantiate:" + currentGun.name);
+        }
 
 
 	}

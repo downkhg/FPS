@@ -4,21 +4,26 @@ using System.Collections;
 
 public class MouseLookScript : MonoBehaviour {
 
-	[HideInInspector]
+	//[HideInInspector]
 	public Transform myCamera;
 	/*
 	 * Hiding the cursor.
 	 */
 	void Awake(){
-		Cursor.lockState = CursorLockMode.Locked;
-		myCamera = GameObject.FindGameObjectWithTag("MainCamera").transform;
-	}
+		//Initialized();
+    }
 
-	/*
+    public void Initialize(Transform trMainCamera)
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        myCamera = trMainCamera;
+    }
+
+    /*
 	* Locking the mouse if pressing L.
 	* Triggering the headbob camera omvement if player is faster than 1 of speed
 	*/
-	void  Update(){
+    void  Update(){
 
 		MouseInputMovement();
 

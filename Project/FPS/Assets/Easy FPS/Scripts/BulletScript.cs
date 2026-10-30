@@ -31,12 +31,13 @@ public class BulletScript : MonoBehaviour {
 
         if (Physics.Raycast(transform.position, transform.forward,out hit, maxDistance, ~ignoreLayer)){
 			if(decalHitWall){
+				string name = "empty";
 				if(hit.transform.tag == "LevelPart"){
-					Instantiate(decalHitWall, hit.point + hit.normal * floatInfrontOfWall, Quaternion.LookRotation(hit.normal));
+					name = Instantiate(decalHitWall, hit.point + hit.normal * floatInfrontOfWall, Quaternion.LookRotation(hit.normal)).name;
 					Destroy(gameObject);
 				}
 				if(hit.transform.tag == "Dummie"){
-					Instantiate(bloodEffect, hit.point, Quaternion.LookRotation(hit.normal));
+                    name = Instantiate(bloodEffect, hit.point, Quaternion.LookRotation(hit.normal)).name;
 					Destroy(gameObject);
 				}
 				if(hit.transform.tag == "PhysicObject")
@@ -47,6 +48,7 @@ public class BulletScript : MonoBehaviour {
 
                     Debug.Log($"BulletScript: {hit.transform.gameObject.name}");
 				}
+				Debug.Log($"{name}");
 			}		
 			Destroy(gameObject);
 		}

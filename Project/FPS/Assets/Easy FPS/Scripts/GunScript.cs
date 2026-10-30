@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Unity.VisualScripting;
 //using UnityStandardAssets.ImageEffects;
 
 public enum GunStyles{
@@ -36,28 +37,27 @@ public class GunScript : MonoBehaviour {
 	 * Collection the variables upon awake that we need.
 	 */
 	void Awake(){
+		Debug.Log(this.gameObject.name+".Start()");
 
-
-		mls = GameObject.FindGameObjectWithTag("Player").GetComponent<MouseLookScript>();
+		mls = GameManager.instance.Mls;
 		player = mls.transform;
 		mainCamera = mls.myCamera;
-		secondCamera = GameObject.FindGameObjectWithTag("SecondCamera").GetComponent<Camera>();
-		cameraComponent = mainCamera.GetComponent<Camera>();
+		secondCamera = GameManager.instance.SecondCamera;
+        cameraComponent = GameManager.instance.MainCamera.GetComponent<Camera>();
 		pmS = player.GetComponent<PlayerMovementScript>();
 
-		bulletSpawnPlace = GameObject.FindGameObjectWithTag("BulletSpawn");
-		hitMarker = transform.Find ("hitMarkerSound").GetComponent<AudioSource> ();
-
+		bulletSpawnPlace = GameManager.instance.BulletSpawnPlace;
+		hitMarker = GameManager.instance.HitMarker;
 		startLook = mouseSensitvity_notAiming;
 		startAim = mouseSensitvity_aiming;
 		startRun = mouseSensitvity_running;
 
 		rotationLastY = mls.currentYRotation;
 		rotationLastX= mls.currentCameraXRotation;
-
+		
 	}
 
-
+	
 	[HideInInspector]
 	public Vector3 currentGunPosition;
 	[Header("Gun Positioning")]
@@ -427,7 +427,8 @@ public class GunScript : MonoBehaviour {
 				int randomNumberForMuzzelFlash = 0;// Random.Range(0,5);
 				if (bullet)
 				{
-					Instantiate(bullet, bulletSpawnPlace.transform.position, bulletSpawnPlace.transform.rotation);
+					GameObject objInstantiate = Instantiate(bullet, bulletSpawnPlace.transform.position, bulletSpawnPlace.transform.rotation);
+					Debug.Log($"Instantiate({objInstantiate})");
 				}
 				else
 					print("Missing the bullet prefab");
