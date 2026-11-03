@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="BulletScript">
+    <Position X="0.5" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAUQAQAAACIAAgAAAAAAAABAAAAAIAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\BulletScript.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DestroyAfterTimeParticle">
+    <Position X="5" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\DestroyAfterTimeParticle.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="GunInventory">
+    <Position X="2" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQkAApAIIAAAQIQAIEAAABBCAgAAAAMACCAAAIAAEA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\GunInventory.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="GunScript">
+    <Position X="8" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAwnSGa9DuloAY0ketktIPFfjBEDEUAdCXKDSQQsR+E=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\GunScript.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="MouseLookScript">
+    <Position X="6.5" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAwARACiEAASAAMAECgIACyAABACQAAAHAAAkACEg=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\MouseLookScript.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PlayerMovementScript">
+    <Position X="3.5" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>MAUGIgwAKhIACwQEAACCAECASBgAAFCECADwBywAIEA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\PlayerMovementScript.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="GameManager">
+    <Position X="5" Y="2.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEQBAAhAACAIIQAAAgghAQAiCABAEQgBABgAAQAoCFA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\GameManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Enum Name="MenuStyle">
+    <Position X="8" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\GunInventory.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="GunStyles" Collapsed="true">
+    <Position X="5.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAEAAAgAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\GunScript.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="맑은 고딕" Size="9" />
+</ClassDiagram>

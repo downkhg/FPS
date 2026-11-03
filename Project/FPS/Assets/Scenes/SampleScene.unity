@@ -787,6 +787,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 837116980}
   m_CullTransparentMesh: 1
+--- !u!1 &847660737 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 173116, guid: c391f12a928274acab8576bb6030641d, type: 3}
+  m_PrefabInstance: {fileID: 1122809389}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &858167199
 GameObject:
   m_ObjectHideFlags: 0
@@ -929,8 +934,19 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 173116, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1749992092}
+    - targetCorrespondingSourceObject: {fileID: 102540, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1939957396}
   m_SourcePrefab: {fileID: 100100000, guid: c391f12a928274acab8576bb6030641d, type: 3}
+--- !u!1 &1311244689 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 102540, guid: c391f12a928274acab8576bb6030641d, type: 3}
+  m_PrefabInstance: {fileID: 1122809389}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1385504390
 GameObject:
   m_ObjectHideFlags: 0
@@ -960,16 +976,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 565c085b618c9b246a875f07fe0b0f51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  cPlayer: {fileID: 0}
+  MouseLookScript: {fileID: 1749992079}
+  HUD_bullets: {fileID: 215213938}
   mainCamera: {fileID: 1939957391}
   secondCamera: {fileID: 1476417922}
-  player: {fileID: 1749992085}
-  gunPlaceHolder: {fileID: 375445979}
+  trLevelFloor: {fileID: 375445979}
+  trPlayer: {fileID: 1749992085}
   bulletSpawnPlace: {fileID: 479864452}
-  hitMarker: {fileID: 0}
-  HUD_bullets: {fileID: 215213938}
-  weapon: {fileID: 375445975}
-  gun: {fileID: 0}
-  MouseLookScript: {fileID: 1749992079}
 --- !u!4 &1385504392
 Transform:
   m_ObjectHideFlags: 0
@@ -995,7 +1009,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 11478776, guid: c391f12a928274acab8576bb6030641d, type: 3}
   m_PrefabInstance: {fileID: 1122809389}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 847660737}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f828f55f50faf4017b1bfaaca53ebd71, type: 3}
@@ -1006,6 +1020,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
   m_PrefabInstance: {fileID: 1122809389}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1749992092
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 847660737}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33fb133e335c4214cbfa365b995eb092, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gun: {fileID: 0}
+  hitMarker: {fileID: 0}
+  gunInventory: {fileID: 0}
 --- !u!1 &1778301578
 GameObject:
   m_ObjectHideFlags: 0
@@ -1147,6 +1176,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 431846, guid: c391f12a928274acab8576bb6030641d, type: 3}
   m_PrefabInstance: {fileID: 1122809389}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1939957396
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1311244689}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33fb133e335c4214cbfa365b995eb092, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gun: {fileID: 0}
+  hitMarker: {fileID: 0}
+  gunInventory: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

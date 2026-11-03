@@ -1,72 +1,102 @@
 using UnityEngine;
+using UnityEngine.Timeline;
 
 public class GameManager : MonoBehaviour
 {
-    MouseLookScript mls;
     Camera cameraComponent;
-    PlayerMovementScript pmS;
-    GunInventory gunInventory;
+ 
+    //MouseLookScript mls;
+    //PlayerMovementScript pmS;
+    
+    //[SerializeField] GunScript gun;
+    //[SerializeField] AudioSource hitMarker;
 
+    //GunInventory gunInventory;
+
+    [SerializeField] Player cPlayer;
+
+    [SerializeField] MouseLookScript MouseLookScript;
+    [SerializeField] TextMesh HUD_bullets;
     [SerializeField] Transform mainCamera;
     [SerializeField] Camera secondCamera;
-    [SerializeField] Transform player;
-    [SerializeField] Transform gunPlaceHolder;
-    [SerializeField] GameObject bulletSpawnPlace;
-    [SerializeField] AudioSource hitMarker;
-    [SerializeField] TextMesh HUD_bullets;
-    [SerializeField] GameObject weapon;
-    [SerializeField] GunScript gun;
-    [SerializeField] MouseLookScript MouseLookScript;
 
-    // Public Getters
-    public MouseLookScript Mls => mls;
+    [SerializeField] Transform trLevelFloor;
+
+    [SerializeField] Transform trPlayer;
+    [SerializeField] GameObject bulletSpawnPlace;
+    
+    public TextMesh HudBullets => HUD_bullets;
     public Transform MainCamera => mainCamera;
     public Camera SecondCamera => secondCamera;
-    public Transform Player => player;
-    public Camera CameraComponent => cameraComponent;
-    public Transform GunPlaceHolder => gunPlaceHolder;
-    public PlayerMovementScript PmS => pmS;
+    public Transform transformLevelFloor => trLevelFloor;
+
+    public Transform Player => trPlayer;
     public GameObject BulletSpawnPlace => bulletSpawnPlace;
-    public AudioSource HitMarker => hitMarker;
-    public TextMesh HudBullets => HUD_bullets;
-    public GameObject Weapon => weapon;
-    public GunScript Gun => gun;
+    //public GunScript Gun => gun;
+    //public AudioSource HitMarker => hitMarker;
+
+
+    // Public Getters
+    //public MouseLookScript Mls => mls;
+   
+    public Camera CameraComponent => cameraComponent;
+    
+    //public PlayerMovementScript PmS => pmS;
+   
+   
+    //public GameObject Weapon => weapon;
+   
 
     public static GameManager instance;
 
     public static GameManager returm;
 
-    private void Initialize()
+    public void Initialize()
     {
-        mls = Player.GetComponent<MouseLookScript>();
+        cPlayer = trPlayer.GetComponent<Player>();
+        cPlayer.Initialize(mainCamera, secondCamera);
+        //mls = Player.GetComponent<MouseLookScript>();
         cameraComponent = mainCamera.GetComponent<Camera>();
-        pmS = player.GetComponent<PlayerMovementScript>();
-        gunInventory = player.GetComponent<GunInventory>();
+        //pmS = player.GetComponent<PlayerMovementScript>();
+        //gunInventory = player.GetComponent<GunInventory>();
 
-        gunInventory.Initialize();
+        //gunInventory.Initialize();
         MouseLookScript.Initialize(mainCamera);
+
+        cPlayer.GunChangeSetUpdate(mainCamera, secondCamera);
+    }
+
+    public void GunChangeSetUpdate()
+    {
+        //if (gunInventory && gunInventory.currentGun)
+        //{
+        //    if (!hitMarker)
+        //        hitMarker = gunInventory.currentGun.transform.Find("hitMarkerSound").GetComponent<AudioSource>();
+        //    if (!gun)
+        //    {
+        //        gun = gunInventory.currentGun.GetComponent<GunScript>();
+        //        gun.Initialize(mls, mainCamera, secondCamera, bulletSpawnPlace, hitMarker);
+        //    }
+        //}
+        //
     }
 
     private void Awake()
     {
+        instance = this;
         Initialize();
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        instance = this;
+       
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (gunInventory && gunInventory.currentGun)
-        {
-            if (!hitMarker)
-                hitMarker = gunInventory.currentGun.transform.Find("hitMarkerSound").GetComponent<AudioSource>();
-            if (!gun)
-                gun = gunInventory.currentGun.GetComponent<GunScript>();
-        }
+        //GunChangeSetUpdate();
+        if(cPlayer) cPlayer.GunChangeSetUpdate(mainCamera, secondCamera);
     }
 }

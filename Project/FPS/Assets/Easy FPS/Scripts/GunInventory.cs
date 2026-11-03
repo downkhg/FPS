@@ -32,14 +32,15 @@ public class GunInventory : MonoBehaviour {
 
 		//if (gunsIHave.Count == 0)
 		//	print ("No guns in the inventory");
-		Initialize();
+		//Initialize();
 	}
 
 	public void Initialize()
 	{
-        StartCoroutine(UpdateIconsFromResources());
-
-        StartCoroutine(SpawnWeaponUponStart());//to start with a gun
+		//StartCoroutine(UpdateIconsFromResources());
+		UpdateIconsFromResouces();
+        //StartCoroutine(SpawnWeaponUponStart());//to start with a gun
+        StartCoroutine(Spawn(currentGunCounter));
 
         if (gunsIHave.Count == 0)
             print("No guns in the inventory");
@@ -107,7 +108,7 @@ public class GunInventory : MonoBehaviour {
 			if(currentGunCounter > gunsIHave.Count-1){
 				currentGunCounter = 0;
 			}
-			StartCoroutine("Spawn",currentGunCounter);
+			StartCoroutine(Spawn(currentGunCounter));
 		}
 		if(Input.GetKeyDown(KeyCode.DownArrow) || Input.GetAxis("Mouse ScrollWheel") < 0){
 			switchWeaponCooldown = 0;
@@ -116,7 +117,7 @@ public class GunInventory : MonoBehaviour {
 			if(currentGunCounter < 0){
 				currentGunCounter = gunsIHave.Count-1;
 			}
-			StartCoroutine("Spawn",currentGunCounter);
+			StartCoroutine(Spawn(currentGunCounter));
 		}
 
 		/*
@@ -125,13 +126,13 @@ public class GunInventory : MonoBehaviour {
 		if(Input.GetKeyDown(KeyCode.Alpha1) && currentGunCounter != 0){
 			switchWeaponCooldown = 0;
 			currentGunCounter = 0;
-			StartCoroutine("Spawn",currentGunCounter);
-		}
+            StartCoroutine(Spawn(currentGunCounter));
+        }
 		if(Input.GetKeyDown(KeyCode.Alpha2) && currentGunCounter != 1){
 			switchWeaponCooldown = 0;
 			currentGunCounter = 1;
-			StartCoroutine("Spawn",currentGunCounter);
-		}
+            StartCoroutine(Spawn(currentGunCounter));
+        }
 
 	}
 

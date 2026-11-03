@@ -25,7 +25,16 @@ public class PlayerMovementScript : MonoBehaviour {
 		ignoreLayer = 1 << LayerMask.NameToLayer ("Player");
 
 	}
-	private Vector3 slowdownV;
+
+    private void Initialize(Transform trCamera, Transform bulletSpaw)
+    {
+        rb = GetComponent<Rigidbody>();
+		cameraMain = trCamera;
+		bulletSpawn = bulletSpaw;
+        ignoreLayer = 1 << LayerMask.NameToLayer("Player");
+    }
+
+    private Vector3 slowdownV;
 	private Vector2 horizontalMovement;
 	/*
 	* Raycasting for meele attacks and input movement handling here.
@@ -338,5 +347,11 @@ public class PlayerMovementScript : MonoBehaviour {
 	public AudioSource _walkSound;
 	[Tooltip("Run Sound player makes.")]
 	public AudioSource _runSound;
+
+    private void OnDrawGizmos()
+    {
+		Gizmos.color = Color.blue;
+        Gizmos.DrawCube(this.transform.position, Vector2.one);
+    }
 }
 
