@@ -155,7 +155,8 @@ public class GunInventory : MonoBehaviour {
 
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
 				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
-				AssignHandsAnimator(currentGun);
+				currentGun.gameObject.name = currentGun.name + "(Clone)_" + this.gameObject.name;
+                AssignHandsAnimator(currentGun);
 				
 				Debug.Log("Instantiate:"+currentGun.name);
 			}

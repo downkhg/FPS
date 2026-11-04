@@ -7,8 +7,8 @@ public class PlayerMovementScript : MonoBehaviour {
 
 	[Tooltip("Current players speed")]
 	public float currentSpeed;
-	[Tooltip("Assign players camera here")]
-	[HideInInspector]public Transform cameraMain;
+	//[Tooltip("Assign players camera here")]
+	//[HideInInspector]public Transform trCameraMain;
 	[Tooltip("Force that moves player into jump")]
 	public float jumpForce = 500;
 	[Tooltip("Position of the camera inside the player")]
@@ -20,17 +20,17 @@ public class PlayerMovementScript : MonoBehaviour {
 	 */
 	void Awake(){
 		rb = GetComponent<Rigidbody>();
-		cameraMain = transform.Find("Main Camera").transform;
-		bulletSpawn = cameraMain.Find ("BulletSpawn").transform;
+		//cameraMain = transform.Find("Main Camera").transform;
+		//bulletSpawn = transform.Find ("BulletSpawn").transform;
 		ignoreLayer = 1 << LayerMask.NameToLayer ("Player");
 
 	}
 
-    private void Initialize(Transform trCamera, Transform bulletSpaw)
+    private void Initialize(Transform mianCamera, Transform _bulletSpawn)
     {
         rb = GetComponent<Rigidbody>();
-		cameraMain = trCamera;
-		bulletSpawn = bulletSpaw;
+        //trCameraMain = mianCamera;
+		//bulletSpawn = _bulletSpawn;
         ignoreLayer = 1 << LayerMask.NameToLayer("Player");
     }
 
@@ -225,7 +225,7 @@ public class PlayerMovementScript : MonoBehaviour {
 	private float rayDetectorMeeleSpace = 0.15f;
 	private float offsetStart = 0.05f;
 	[Tooltip("Put BulletSpawn gameobject here, palce from where bullets are created.")]
-	[HideInInspector]
+	//[HideInInspector]
 	public Transform bulletSpawn; //from here we shoot a ray to check where we hit him;
 	/*
 	* This method casts 9 rays in different directions. ( SEE scene tab and you will see 9 rays differently coloured).

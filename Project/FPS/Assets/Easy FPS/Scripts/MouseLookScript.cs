@@ -138,7 +138,8 @@ void ApplyingStuff(){
 	WeaponRotation();
 
 	transform.rotation = Quaternion.Euler(0, currentYRotation, 0);
-	myCamera.localRotation = Quaternion.Euler(currentCameraXRotation, 0, zRotation);
+	if(myCamera)
+		myCamera.localRotation = Quaternion.Euler(currentCameraXRotation, 0, zRotation);
 
 }
 

@@ -1,19 +1,15 @@
+using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.Timeline;
 
 public class GameManager : MonoBehaviour
 {
-    Camera cameraComponent;
- 
-    //MouseLookScript mls;
-    //PlayerMovementScript pmS;
-    
-    //[SerializeField] GunScript gun;
-    //[SerializeField] AudioSource hitMarker;
+    [SerializeField] GameObject prefabPlayer;
 
-    //GunInventory gunInventory;
+    Camera cameraComponent;
 
     [SerializeField] Player cPlayer;
+    [SerializeField] Player cNpc;
 
     [SerializeField] MouseLookScript MouseLookScript;
     [SerializeField] TextMesh HUD_bullets;
@@ -22,7 +18,6 @@ public class GameManager : MonoBehaviour
 
     [SerializeField] Transform trLevelFloor;
 
-    [SerializeField] Transform trPlayer;
     [SerializeField] GameObject bulletSpawnPlace;
     
     public TextMesh HudBullets => HUD_bullets;
@@ -30,55 +25,27 @@ public class GameManager : MonoBehaviour
     public Camera SecondCamera => secondCamera;
     public Transform transformLevelFloor => trLevelFloor;
 
-    public Transform Player => trPlayer;
     public GameObject BulletSpawnPlace => bulletSpawnPlace;
-    //public GunScript Gun => gun;
-    //public AudioSource HitMarker => hitMarker;
-
-
-    // Public Getters
-    //public MouseLookScript Mls => mls;
    
     public Camera CameraComponent => cameraComponent;
     
-    //public PlayerMovementScript PmS => pmS;
-   
-   
-    //public GameObject Weapon => weapon;
-   
-
     public static GameManager instance;
-
-    public static GameManager returm;
 
     public void Initialize()
     {
-        cPlayer = trPlayer.GetComponent<Player>();
+        //cPlayer = ((GameObject)Instantiate(prefabPlayer, Vector3.up * 1.5f, Quaternion.identity)).GetComponent<Player>();
         cPlayer.Initialize(mainCamera, secondCamera);
-        //mls = Player.GetComponent<MouseLookScript>();
-        cameraComponent = mainCamera.GetComponent<Camera>();
-        //pmS = player.GetComponent<PlayerMovementScript>();
-        //gunInventory = player.GetComponent<GunInventory>();
+        cNpc.Initialize(null, null);    
 
-        //gunInventory.Initialize();
+        mainCamera.parent = cPlayer.transform;
+        mainCamera.localPosition = Vector3.zero;
+
+        cameraComponent = mainCamera.GetComponent<Camera>();
+ 
         MouseLookScript.Initialize(mainCamera);
 
         cPlayer.GunChangeSetUpdate(mainCamera, secondCamera);
-    }
-
-    public void GunChangeSetUpdate()
-    {
-        //if (gunInventory && gunInventory.currentGun)
-        //{
-        //    if (!hitMarker)
-        //        hitMarker = gunInventory.currentGun.transform.Find("hitMarkerSound").GetComponent<AudioSource>();
-        //    if (!gun)
-        //    {
-        //        gun = gunInventory.currentGun.GetComponent<GunScript>();
-        //        gun.Initialize(mls, mainCamera, secondCamera, bulletSpawnPlace, hitMarker);
-        //    }
-        //}
-        //
+        if(cNpc) cNpc.GunChangeSetUpdate(null, null);
     }
 
     private void Awake()
@@ -87,16 +54,10 @@ public class GameManager : MonoBehaviour
         Initialize();
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-       
-    }
-
     // Update is called once per frame
     void Update()
     {
-        //GunChangeSetUpdate();
         if(cPlayer) cPlayer.GunChangeSetUpdate(mainCamera, secondCamera);
+        if(cNpc) cNpc.GunChangeSetUpdate(null, null);
     }
 }
