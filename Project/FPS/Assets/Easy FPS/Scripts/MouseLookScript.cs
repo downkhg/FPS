@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 
@@ -6,16 +6,21 @@ public class MouseLookScript : MonoBehaviour {
 
 	//[HideInInspector]
 	public Transform myCamera;
-	/*
-	 * Hiding the cursor.
-	 */
+
+	private Player playerComponent;
+
 	void Awake(){
-		//Initialized();
+		playerComponent = GetComponent<Player>();
     }
 
     public void Initialize(Transform trMainCamera)
     {
-        Cursor.lockState = CursorLockMode.Locked;
+		if (!playerComponent)
+			playerComponent = GetComponent<Player>();
+
+		if (playerComponent == null || playerComponent.isPlayer)
+			Cursor.lockState = CursorLockMode.Locked;
+
         myCamera = trMainCamera;
     }
 
@@ -24,6 +29,7 @@ public class MouseLookScript : MonoBehaviour {
 	* Triggering the headbob camera omvement if player is faster than 1 of speed
 	*/
     void  Update(){
+		if (playerComponent != null && !playerComponent.isPlayer) return;
 
 		MouseInputMovement();
 
@@ -33,7 +39,8 @@ public class MouseLookScript : MonoBehaviour {
 		}
 		deltaTime += (Time.deltaTime - deltaTime) * 0.1f;
 
-		if(GetComponent<PlayerMovementScript>().currentSpeed > 1)
+		PlayerMovementScript pms = GetComponent<PlayerMovementScript>();
+		if(pms && pms.currentSpeed > 1)
 			HeadMovement ();
 
 	}
@@ -72,24 +79,23 @@ public class MouseLookScript : MonoBehaviour {
 * If aiming set the mouse sensitvity from our variables and vice versa.
 */
 void FixedUpdate(){
+	if (playerComponent != null && !playerComponent.isPlayer) return;
 
+	PlayerMovementScript pms = GetComponent<PlayerMovementScript>();
 	/*
 	 * Reduxing mouse sensitvity if we are aiming.
 	 */
 	if(Input.GetAxis("Fire2") != 0){
 		mouseSensitvity = mouseSensitvity_aiming;
 	}
-	else if(GetComponent<PlayerMovementScript>().maxSpeed > 5){
+	else if(pms && pms.maxSpeed > 5){
 		mouseSensitvity = mouseSensitvity_notAiming;
 	}
 	else{
 		mouseSensitvity = mouseSensitvity_notAiming;
 	}
 
-
 	ApplyingStuff();
-
-
 }
 
 
@@ -178,6 +184,7 @@ public bool showFps = true;
 * Shows fps if its set to true.
 */
 void OnGUI(){
+	if (playerComponent != null && !playerComponent.isPlayer) return;
 
 	if(showFps){
 		FPSCounter();

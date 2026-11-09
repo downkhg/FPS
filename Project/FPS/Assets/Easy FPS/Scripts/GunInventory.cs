@@ -1,7 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
 
 public enum MenuStyle{
 	horizontal,vertical
@@ -21,25 +20,18 @@ public class GunInventory : MonoBehaviour {
 	[HideInInspector]
 	public float switchWeaponCooldown;
 
-	/*
-	 * Calling the method that will update the icons of our guns if we carry any upon start.
-	 * Also will spawn a weapon upon start.
-	 */
+	private Player playerComponent;
+
 	void Awake(){
-		//StartCoroutine("UpdateIconsFromResources");
-
-		//StartCoroutine ("SpawnWeaponUponStart");//to start with a gun
-
-		//if (gunsIHave.Count == 0)
-		//	print ("No guns in the inventory");
-		//Initialize();
+		playerComponent = GetComponent<Player>();
 	}
 
 	public void Initialize()
 	{
-		//StartCoroutine(UpdateIconsFromResources());
+		if (!playerComponent)
+			playerComponent = GetComponent<Player>();
+
 		UpdateIconsFromResouces();
-        //StartCoroutine(SpawnWeaponUponStart());//to start with a gun
         StartCoroutine(Spawn(currentGunCounter));
 
         if (gunsIHave.Count == 0)
@@ -60,6 +52,7 @@ public class GunInventory : MonoBehaviour {
 	 * overcomes 0.0f. 
 	 */
 	void Update(){
+		if (playerComponent != null && !playerComponent.isPlayer) return;
 
 		switchWeaponCooldown += 1 * Time.deltaTime;
 		if(switchWeaponCooldown > 1.2f && Input.GetKey(KeyCode.LeftShift) == false){
@@ -178,12 +171,18 @@ public class GunInventory : MonoBehaviour {
 		else{
 			GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
 			currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
-
-			AssignHandsAnimator(currentGun);
+            AssignHandsAnimator(currentGun);
             Debug.Log("Instantiate:" + currentGun.name);
         }
 
-
+		// 무기 생성 완료 후 Player에 의존성 갱신 알림
+		if (playerComponent)
+		{
+			playerComponent.GunChangeSetUpdate(
+				playerComponent.isPlayer ? GameManager.instance?.MainCamera : null,
+				playerComponent.isPlayer ? GameManager.instance?.SecondCamera : null
+			);
+		}
 	}
 
 
@@ -192,7 +191,8 @@ public class GunInventory : MonoBehaviour {
 	*/
 	void AssignHandsAnimator(GameObject _currentGun){
 		if(_currentGun.name.Contains("Gun")){
-			currentHAndsAnimator = currentGun.GetComponent<GunScript>().handsAnimator;
+			GunScript gs = currentGun.GetComponent<GunScript>();
+			if (gs) currentHAndsAnimator = gs.handsAnimator;
 		}
 	}
 
@@ -201,9 +201,17 @@ public class GunInventory : MonoBehaviour {
 	 * From here I am listing thourhg guns I have and drawing corresponding images on the sceen.
 	 */
 	void OnGUI(){
+		if (playerComponent != null && !playerComponent.isPlayer) return;
 
-		if(currentGun){
-			for(int i = 0; i < gunsIHave.Count; i++){
+		if (currentGun && gunsIHave != null && gunsIHave.Count > 0)
+		{
+			if (icons == null || icons.Length != gunsIHave.Count)
+			{
+				UpdateIconsFromResouces();
+			}
+
+			for (int i = 0; i < gunsIHave.Count; i++)
+			{
 				DrawCorrespondingImage(i);
 			}
 		}
@@ -225,11 +233,16 @@ public class GunInventory : MonoBehaviour {
 	 * The curent gun selected image has their image slightly enlared for some value.
 	 */
 	void DrawCorrespondingImage(int _number){
+		if (icons == null || _number >= icons.Length || icons[_number] == null)
+			return;
 
-		string deleteCloneFromName = currentGun.name.Substring(0,currentGun.name.Length - 7);
+		if (_number >= gunsIHave.Count)
+			return;
+
+		bool isCurrentSelected = currentGun.name.Contains(gunsIHave[_number]);
 
 		if(menuStyle == MenuStyle.horizontal){
-			if(deleteCloneFromName == gunsIHave[_number]){
+			if(isCurrentSelected){
 				GUI.DrawTexture(new Rect(vec2(beginPosition).x +(_number*position_x(spacing)),vec2(beginPosition).y,//position variables
 					vec2(size).x, vec2(size).y),//size
 					icons[_number]);
@@ -241,7 +254,7 @@ public class GunInventory : MonoBehaviour {
 			}
 		}
 		else if(menuStyle == MenuStyle.vertical){
-			if(deleteCloneFromName == gunsIHave[_number]){
+			if(isCurrentSelected){
 				GUI.DrawTexture(new Rect(vec2(beginPosition).x,vec2(beginPosition).y +(_number*position_y(spacing)),//position variables
 					vec2(size).x, vec2(size).y),//size
 					icons[_number]);
@@ -252,9 +265,6 @@ public class GunInventory : MonoBehaviour {
 					icons[_number]);
 			}
 		}
-
-
-
 	}
 
 	/*

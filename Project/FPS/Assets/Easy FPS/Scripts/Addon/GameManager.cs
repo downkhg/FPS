@@ -1,6 +1,4 @@
-using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.Timeline;
 
 public class GameManager : MonoBehaviour
 {
@@ -29,23 +27,35 @@ public class GameManager : MonoBehaviour
    
     public Camera CameraComponent => cameraComponent;
     
+    public Player CurrentPlayer => cPlayer;
+    public Player CurrentNpc => cNpc;
+
     public static GameManager instance;
 
     public void Initialize()
     {
-        //cPlayer = ((GameObject)Instantiate(prefabPlayer, Vector3.up * 1.5f, Quaternion.identity)).GetComponent<Player>();
-        cPlayer.Initialize(mainCamera, secondCamera);
-        cNpc.Initialize(null, null);    
+        if (cPlayer)
+        {
+            cPlayer.isPlayer = true;
+            cPlayer.Initialize(mainCamera, secondCamera);
 
-        mainCamera.parent = cPlayer.transform;
-        mainCamera.localPosition = Vector3.zero;
+            if (mainCamera)
+            {
+                mainCamera.parent = cPlayer.ViewPivot;
+                mainCamera.localPosition = Vector3.zero;
+                mainCamera.localRotation = Quaternion.identity;
+                cameraComponent = mainCamera.GetComponent<Camera>();
+            }
 
-        cameraComponent = mainCamera.GetComponent<Camera>();
- 
-        MouseLookScript.Initialize(mainCamera);
+            if (MouseLookScript)
+                MouseLookScript.Initialize(mainCamera);
+        }
 
-        cPlayer.GunChangeSetUpdate(mainCamera, secondCamera);
-        if(cNpc) cNpc.GunChangeSetUpdate(null, null);
+        if (cNpc)
+        {
+            cNpc.isPlayer = false;
+            cNpc.Initialize(null, null);
+        }
     }
 
     private void Awake()
@@ -54,10 +64,13 @@ public class GameManager : MonoBehaviour
         Initialize();
     }
 
-    // Update is called once per frame
     void Update()
     {
-        if(cPlayer) cPlayer.GunChangeSetUpdate(mainCamera, secondCamera);
-        if(cNpc) cNpc.GunChangeSetUpdate(null, null);
+        // 각 Player 인스턴스의 Update()에서 자신의 총기 및 컴포넌트를 직접 업데이트합니다.
+    }
+
+    private void FixedUpdate()
+    {
+        // 각 Player 인스턴스의 FixedUpdate()에서 자신의 총기 및 컴포넌트를 직접 업데이트합니다.
     }
 }

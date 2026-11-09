@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 public class BulletScript : MonoBehaviour {
@@ -27,9 +27,10 @@ public class BulletScript : MonoBehaviour {
 	Rigidbody rigidBodyHit;
 
     void Update () {
-      
+        // 발사자 콜라이더 내부에서 시작되어 즉시 씹히는 현상 방지를 위해 0.1f 오프셋 적용
+        Vector3 rayOrigin = transform.position + transform.forward * 0.1f;
 
-        if (Physics.Raycast(transform.position, transform.forward,out hit, maxDistance, ~ignoreLayer)){
+        if (Physics.Raycast(rayOrigin, transform.forward, out hit, maxDistance, ~ignoreLayer)){
 			if(decalHitWall){
 				string name = "empty";
 				if(hit.transform.tag == "LevelPart"){

@@ -1,18 +1,25 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMovementScript : MonoBehaviour {
 	Rigidbody rb;
 
 	[Tooltip("Current players speed")]
 	public float currentSpeed;
-	//[Tooltip("Assign players camera here")]
-	//[HideInInspector]public Transform trCameraMain;
 	[Tooltip("Force that moves player into jump")]
 	public float jumpForce = 500;
 	[Tooltip("Position of the camera inside the player")]
 	[HideInInspector]public Vector3 cameraPosition;
+
+	[Header("Marionette / NPC Sync Settings")]
+	[Tooltip("카메라가 없을 때(NPC) 플레이어의 Forward를 기준으로 키보드 입력에 맞춰 함께 이동할지 여부")]
+	public bool syncMovementWithPlayer = true;
+	[Tooltip("기준으로 삼을 플레이어 Transform (비워두면 GameManager.instance.CurrentPlayer 참조)")]
+	public Transform referencePlayerTransform;
+
+	private Player playerComponent;
 
 	/*
 	 * Getting the Players rigidbody component.
@@ -20,17 +27,22 @@ public class PlayerMovementScript : MonoBehaviour {
 	 */
 	void Awake(){
 		rb = GetComponent<Rigidbody>();
-		//cameraMain = transform.Find("Main Camera").transform;
-		//bulletSpawn = transform.Find ("BulletSpawn").transform;
+		playerComponent = GetComponent<Player>();
 		ignoreLayer = 1 << LayerMask.NameToLayer ("Player");
 
+		if (!bulletSpawn)
+		{
+			Transform foundSpawn = transform.Find("BulletSpawn");
+			if (foundSpawn) bulletSpawn = foundSpawn;
+			else bulletSpawn = this.transform;
+		}
 	}
 
     private void Initialize(Transform mianCamera, Transform _bulletSpawn)
     {
         rb = GetComponent<Rigidbody>();
-        //trCameraMain = mianCamera;
-		//bulletSpawn = _bulletSpawn;
+		playerComponent = GetComponent<Player>();
+		if (_bulletSpawn) bulletSpawn = _bulletSpawn;
         ignoreLayer = 1 << LayerMask.NameToLayer("Player");
     }
 
@@ -67,16 +79,47 @@ public class PlayerMovementScript : MonoBehaviour {
 				deaccelerationSpeed);
 		}
 
-		if (grounded) {
-			rb.AddRelativeForce (Input.GetAxis ("Horizontal") * accelerationSpeed * Time.deltaTime, 0, Input.GetAxis ("Vertical") * accelerationSpeed * Time.deltaTime);
-		} else {
-			rb.AddRelativeForce (Input.GetAxis ("Horizontal") * accelerationSpeed / 2 * Time.deltaTime, 0, Input.GetAxis ("Vertical") * accelerationSpeed / 2 * Time.deltaTime);
+		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
+		float hInput = 0f;
+		float vInput = 0f;
 
+		if (!isNPC)
+		{
+			// [로컬 플레이어] 키보드 입력 및 로컬 좌표계 기준 이동
+			hInput = Input.GetAxis ("Horizontal");
+			vInput = Input.GetAxis ("Vertical");
+
+			float forceMultiplier = grounded ? accelerationSpeed : (accelerationSpeed / 2f);
+			rb.AddRelativeForce (hInput * forceMultiplier * Time.deltaTime, 0, vInput * forceMultiplier * Time.deltaTime);
 		}
+		else if (syncMovementWithPlayer)
+		{
+			// [NPC 마리오네트] 옵션이 켜져 있을 때 키보드 입력 수신 및 플레이어 Forward 기준 이동
+			hInput = Input.GetAxis ("Horizontal");
+			vInput = Input.GetAxis ("Vertical");
+
+			Transform refTr = referencePlayerTransform;
+			if (!refTr && GameManager.instance && GameManager.instance.CurrentPlayer)
+			{
+				refTr = GameManager.instance.CurrentPlayer.transform;
+			}
+
+			if (refTr != null)
+			{
+				Vector3 playerForward = Vector3.ProjectOnPlane(refTr.forward, Vector3.up).normalized;
+				Vector3 playerRight = Vector3.ProjectOnPlane(refTr.right, Vector3.up).normalized;
+
+				Vector3 moveWorldDir = (playerRight * hInput + playerForward * vInput);
+
+				float forceMultiplier = grounded ? accelerationSpeed : (accelerationSpeed / 2f);
+				rb.AddForce (moveWorldDir * forceMultiplier * Time.deltaTime, ForceMode.Force);
+			}
+		}
+
 		/*
 		 * Slippery issues fixed here
 		 */
-		if (Input.GetAxis ("Horizontal") != 0 || Input.GetAxis ("Vertical") != 0) {
+		if (hInput != 0 || vInput != 0) {
 			deaccelerationSpeed = 0.5f;
 		} else {
 			deaccelerationSpeed = 0.1f;
@@ -86,28 +129,31 @@ public class PlayerMovementScript : MonoBehaviour {
 	* Handles jumping and ads the force and sounds.
 	*/
 	void Jumping(){
+		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
+		if (isNPC && !syncMovementWithPlayer) return;
+
 		if (Input.GetKeyDown (KeyCode.Space) && grounded) {
 			rb.AddRelativeForce (Vector3.up * jumpForce);
 			if (_jumpSound)
 				_jumpSound.Play ();
 			else
 				print ("Missig jump sound.");
-			_walkSound.Stop ();
-			_runSound.Stop ();
+			if (_walkSound) _walkSound.Stop ();
+			if (_runSound) _runSound.Stop ();
 		}
 	}
 	/*
 	* Update loop calling other stuff
 	*/
 	void Update(){
-		
+		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
+		if (isNPC && !syncMovementWithPlayer) return;
 
 		Jumping ();
 
 		Crouching();
 
 		WalkingSound ();
-
 
 	}//end update
 
@@ -118,17 +164,12 @@ public class PlayerMovementScript : MonoBehaviour {
 		if (_walkSound && _runSound) {
 			if (RayCastGrounded ()) { //for walk sounsd using this because suraface is not straigh			
 				if (currentSpeed > 1) {
-					//				print ("unutra sam");
 					if (maxSpeed == 3) {
-						//	print ("tu sem");
 						if (!_walkSound.isPlaying) {
-							//	print ("playam hod");
 							_walkSound.Play ();
 							_runSound.Stop ();
 						}					
 					} else if (maxSpeed == 5) {
-						//	print ("NE tu sem");
-
 						if (!_runSound.isPlaying) {
 							_walkSound.Stop ();
 							_runSound.Play ();
@@ -142,10 +183,7 @@ public class PlayerMovementScript : MonoBehaviour {
 				_walkSound.Stop ();
 				_runSound.Stop ();
 			}
-		} else {
-			print ("Missing walk and running sounds.");
 		}
-
 	}
 	/*
 	* Raycasts down to check if we are grounded along the gorunded method() because if the
@@ -156,15 +194,12 @@ public class PlayerMovementScript : MonoBehaviour {
 		if(Physics.Raycast(transform.position, transform.up *-1f, out groundedInfo, 1, ~ignoreLayer)){
 			Debug.DrawRay (transform.position, transform.up * -1f, Color.red, 0.0f);
 			if(groundedInfo.transform != null){
-				//print ("vracam true");
 				return true;
 			}
 			else{
-				//print ("vracam false");
 				return false;
 			}
 		}
-		//print ("nisam if dosao");
 
 		return false;
 	}
@@ -173,6 +208,9 @@ public class PlayerMovementScript : MonoBehaviour {
 	* If player toggle the crouch it will scale the player to appear that is crouching
 	*/
 	void Crouching(){
+		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
+		if (isNPC && !syncMovementWithPlayer) return;
+
 		if(Input.GetKey(KeyCode.C)){
 			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,0.6f,1), Time.deltaTime * 15);
 		}
@@ -225,7 +263,6 @@ public class PlayerMovementScript : MonoBehaviour {
 	private float rayDetectorMeeleSpace = 0.15f;
 	private float offsetStart = 0.05f;
 	[Tooltip("Put BulletSpawn gameobject here, palce from where bullets are created.")]
-	//[HideInInspector]
 	public Transform bulletSpawn; //from here we shoot a ray to check where we hit him;
 	/*
 	* This method casts 9 rays in different directions. ( SEE scene tab and you will see 9 rays differently coloured).
@@ -236,17 +273,16 @@ public class PlayerMovementScript : MonoBehaviour {
 
 	public bool been_to_meele_anim = false;
 	private void RaycastForMeleeAttacks(){
-
-
-
+		if (bulletSpawn == null) return;
 
 		if (meleeAttack_cooldown > -5) {
 			meleeAttack_cooldown -= 1 * Time.deltaTime;
 		}
 
 
-		if (GetComponent<GunInventory> ().currentGun) {
-			if (GetComponent<GunInventory> ().currentGun.GetComponent<GunScript> ()) 
+		GunInventory inv = GetComponent<GunInventory>();
+		if (inv && inv.currentGun) {
+			if (inv.currentGun.GetComponent<GunScript> ()) 
 				currentWeapo = "gun";
 		}
 
@@ -273,15 +309,16 @@ public class PlayerMovementScript : MonoBehaviour {
 		Debug.DrawRay (ray8.origin, ray8.direction, Color.yellow);
 		Debug.DrawRay (ray9.origin, ray9.direction, Color.yellow);
 
-		if (GetComponent<GunInventory> ().currentGun) {
-			if (GetComponent<GunInventory> ().currentGun.GetComponent<GunScript> ().meeleAttack == false) {
-				been_to_meele_anim = false;
-			}
-			if (GetComponent<GunInventory> ().currentGun.GetComponent<GunScript> ().meeleAttack == true && been_to_meele_anim == false) {
-				been_to_meele_anim = true;
-				//	if (isRunning == false) {
-				StartCoroutine ("MeeleAttackWeaponHit");
-				//	}
+		if (inv && inv.currentGun) {
+			GunScript gs = inv.currentGun.GetComponent<GunScript>();
+			if (gs) {
+				if (gs.meeleAttack == false) {
+					been_to_meele_anim = false;
+				}
+				if (gs.meeleAttack == true && been_to_meele_anim == false) {
+					been_to_meele_anim = true;
+					StartCoroutine ("MeeleAttackWeaponHit");
+				}
 			}
 		}
 
@@ -295,7 +332,6 @@ public class PlayerMovementScript : MonoBehaviour {
 		if (Physics.Raycast (ray1, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray2, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray3, out hitInfo, 2f, ~ignoreLayer)
 			|| Physics.Raycast (ray4, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray5, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray6, out hitInfo, 2f, ~ignoreLayer)
 			|| Physics.Raycast (ray7, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray8, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray9, out hitInfo, 2f, ~ignoreLayer)) {
-			//Debug.DrawRay (bulletSpawn.position, bulletSpawn.forward + (bulletSpawn.right*0.2f), Color.green, 0.0f);
 			if (hitInfo.transform.tag=="Dummie") {
 				Transform _other = hitInfo.transform.root.transform;
 				if (_other.transform.tag == "Dummie") {
@@ -354,4 +390,3 @@ public class PlayerMovementScript : MonoBehaviour {
         Gizmos.DrawCube(this.transform.position, Vector2.one);
     }
 }
-
