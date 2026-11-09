@@ -58,13 +58,6 @@ public class Player : MonoBehaviour
             m_cPlayerMovementScript.syncMovementWithPlayer = syncMovementWithPlayer;
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
     void Update()
     {
         if (isInitGunScript && gun) gun.UpdateProcess();
@@ -83,7 +76,6 @@ public class Player : MonoBehaviour
         if (m_cPlayerMovementScript)
             m_cPlayerMovementScript.syncMovementWithPlayer = syncMovementWithPlayer;
 
-        // 플레이어의 경우 GameManager에 지정된 BulletSpawnPlace가 있으면 기본으로 연결
         if (isPlayer && !bulletSpawnPlace && GameManager.instance && GameManager.instance.BulletSpawnPlace)
         {
             bulletSpawnPlace = GameManager.instance.BulletSpawnPlace;
@@ -118,5 +110,78 @@ public class Player : MonoBehaviour
                 isInitGunScript = true;
             }
         }
+    }
+
+    // ==================== 마리오네트 제어 API ====================
+
+    public void Move(Vector2 inputDirection)
+    {
+        if (m_cPlayerMovementScript)
+            m_cPlayerMovementScript.SetInputMove(inputDirection);
+    }
+
+    public void MoveWorld(Vector3 worldDirection)
+    {
+        if (m_cPlayerMovementScript)
+            m_cPlayerMovementScript.SetWorldMove(worldDirection);
+    }
+
+    public void LookAtTarget(Vector3 targetPosition)
+    {
+        Vector3 targetDir = targetPosition - transform.position;
+        targetDir.y = 0; // 수평 회전
+        if (targetDir.sqrMagnitude > 0.001f)
+        {
+            Quaternion targetRot = Quaternion.LookRotation(targetDir, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
+        }
+    }
+
+    public void Jump()
+    {
+        if (m_cPlayerMovementScript)
+            m_cPlayerMovementScript.DoJump();
+    }
+
+    public void Crouch(bool enable)
+    {
+        if (m_cPlayerMovementScript)
+            m_cPlayerMovementScript.DoCrouch(enable);
+    }
+
+    public void Shoot()
+    {
+        if (gun)
+            gun.TriggerShoot();
+    }
+
+    public void Aim(bool enable)
+    {
+        if (gun)
+            gun.SetAiming(enable);
+    }
+
+    public void Reload()
+    {
+        if (gun)
+            gun.TriggerReload();
+    }
+
+    public void Melee()
+    {
+        if (gun)
+            gun.TriggerMelee();
+    }
+
+    public void SwitchWeapon(int weaponIndex)
+    {
+        if (gunInventory)
+            gunInventory.SwitchWeapon(weaponIndex);
+    }
+
+    public void NextWeapon()
+    {
+        if (gunInventory)
+            gunInventory.NextWeapon();
     }
 }

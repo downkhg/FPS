@@ -21,6 +21,12 @@ public class PlayerMovementScript : MonoBehaviour {
 
 	private Player playerComponent;
 
+	// 마리오네트 제어를 위한 입력 캐싱
+	private Vector2 currentInputMove;
+	private Vector3 currentWorldMove;
+	private bool hasWorldMove = false;
+	private bool isCrouching = false;
+
 	/*
 	 * Getting the Players rigidbody component.
 	 * And grabbing the mainCamera from Players child transform.
@@ -48,6 +54,7 @@ public class PlayerMovementScript : MonoBehaviour {
 
     private Vector3 slowdownV;
 	private Vector2 horizontalMovement;
+
 	/*
 	* Raycasting for meele attacks and input movement handling here.
 	*/
@@ -56,6 +63,7 @@ public class PlayerMovementScript : MonoBehaviour {
 
 		PlayerMovementLogic ();
 	}
+
 	/*
 	* Accordingly to input adds force and if magnitude is bigger it will clamp it.
 	* If player leaves keys it will deaccelerate
@@ -79,90 +87,82 @@ public class PlayerMovementScript : MonoBehaviour {
 				deaccelerationSpeed);
 		}
 
-		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
-		float hInput = 0f;
-		float vInput = 0f;
+		float hInput = currentInputMove.x;
+		float vInput = currentInputMove.y;
+		float forceMultiplier = grounded ? accelerationSpeed : (accelerationSpeed / 2f);
 
-		if (!isNPC)
+		if (hasWorldMove)
 		{
-			// [로컬 플레이어] 키보드 입력 및 로컬 좌표계 기준 이동
-			hInput = Input.GetAxis ("Horizontal");
-			vInput = Input.GetAxis ("Vertical");
+			// [AI 컨트롤러 / 월드 방향 이동]
+			Vector3 moveDir = Vector3.ProjectOnPlane(currentWorldMove, Vector3.up).normalized;
+			rb.AddForce(moveDir * forceMultiplier * Time.deltaTime, ForceMode.Force);
 
-			float forceMultiplier = grounded ? accelerationSpeed : (accelerationSpeed / 2f);
+			deaccelerationSpeed = (currentWorldMove.sqrMagnitude > 0.01f) ? 0.5f : 0.1f;
+		}
+		else
+		{
+			// [플레이어 컨트롤러 / 로컬 축 기준 이동]
 			rb.AddRelativeForce (hInput * forceMultiplier * Time.deltaTime, 0, vInput * forceMultiplier * Time.deltaTime);
-		}
-		else if (syncMovementWithPlayer)
-		{
-			// [NPC 마리오네트] 옵션이 켜져 있을 때 키보드 입력 수신 및 플레이어 Forward 기준 이동
-			hInput = Input.GetAxis ("Horizontal");
-			vInput = Input.GetAxis ("Vertical");
 
-			Transform refTr = referencePlayerTransform;
-			if (!refTr && GameManager.instance && GameManager.instance.CurrentPlayer)
-			{
-				refTr = GameManager.instance.CurrentPlayer.transform;
+			if (hInput != 0 || vInput != 0) {
+				deaccelerationSpeed = 0.5f;
+			} else {
+				deaccelerationSpeed = 0.1f;
 			}
-
-			if (refTr != null)
-			{
-				Vector3 playerForward = Vector3.ProjectOnPlane(refTr.forward, Vector3.up).normalized;
-				Vector3 playerRight = Vector3.ProjectOnPlane(refTr.right, Vector3.up).normalized;
-
-				Vector3 moveWorldDir = (playerRight * hInput + playerForward * vInput);
-
-				float forceMultiplier = grounded ? accelerationSpeed : (accelerationSpeed / 2f);
-				rb.AddForce (moveWorldDir * forceMultiplier * Time.deltaTime, ForceMode.Force);
-			}
-		}
-
-		/*
-		 * Slippery issues fixed here
-		 */
-		if (hInput != 0 || vInput != 0) {
-			deaccelerationSpeed = 0.5f;
-		} else {
-			deaccelerationSpeed = 0.1f;
 		}
 	}
-	/*
-	* Handles jumping and ads the force and sounds.
-	*/
-	void Jumping(){
-		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
-		if (isNPC && !syncMovementWithPlayer) return;
 
-		if (Input.GetKeyDown (KeyCode.Space) && grounded) {
+	// ==================== 마리오네트 제어 API ====================
+
+	public void SetInputMove(Vector2 moveInput)
+	{
+		hasWorldMove = false;
+		currentInputMove = moveInput;
+	}
+
+	public void SetWorldMove(Vector3 worldDirection)
+	{
+		hasWorldMove = true;
+		currentWorldMove = worldDirection;
+		currentInputMove = new Vector2(worldDirection.x, worldDirection.z);
+	}
+
+	public void DoJump()
+	{
+		if (grounded) {
 			rb.AddRelativeForce (Vector3.up * jumpForce);
 			if (_jumpSound)
 				_jumpSound.Play ();
-			else
-				print ("Missig jump sound.");
 			if (_walkSound) _walkSound.Stop ();
 			if (_runSound) _runSound.Stop ();
 		}
 	}
-	/*
-	* Update loop calling other stuff
-	*/
+
+	public void DoCrouch(bool enable)
+	{
+		isCrouching = enable;
+	}
+
 	void Update(){
-		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
-		if (isNPC && !syncMovementWithPlayer) return;
-
-		Jumping ();
-
-		Crouching();
-
+		CrouchingProcess();
 		WalkingSound ();
+	}
 
-	}//end update
+	void CrouchingProcess(){
+		if(isCrouching){
+			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,0.6f,1), Time.deltaTime * 15);
+		}
+		else{
+			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,1,1), Time.deltaTime * 15);
+		}
+	}
 
 	/*
 	* Checks if player is grounded and plays the sound accorindlgy to his speed
 	*/
 	void WalkingSound(){
 		if (_walkSound && _runSound) {
-			if (RayCastGrounded ()) { //for walk sounsd using this because suraface is not straigh			
+			if (RayCastGrounded ()) {			
 				if (currentSpeed > 1) {
 					if (maxSpeed == 3) {
 						if (!_walkSound.isPlaying) {
@@ -185,10 +185,7 @@ public class PlayerMovementScript : MonoBehaviour {
 			}
 		}
 	}
-	/*
-	* Raycasts down to check if we are grounded along the gorunded method() because if the
-	* floor is curvy it will go ON/OFF constatly this assures us if we are really grounded
-	*/
+
 	private bool RayCastGrounded(){
 		RaycastHit groundedInfo;
 		if(Physics.Raycast(transform.position, transform.up *-1f, out groundedInfo, 1, ~ignoreLayer)){
@@ -204,23 +201,6 @@ public class PlayerMovementScript : MonoBehaviour {
 		return false;
 	}
 
-	/*
-	* If player toggle the crouch it will scale the player to appear that is crouching
-	*/
-	void Crouching(){
-		bool isNPC = (playerComponent != null && !playerComponent.isPlayer);
-		if (isNPC && !syncMovementWithPlayer) return;
-
-		if(Input.GetKey(KeyCode.C)){
-			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,0.6f,1), Time.deltaTime * 15);
-		}
-		else{
-			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,1,1), Time.deltaTime * 15);
-
-		}
-	}
-
-
 	[Tooltip("The maximum speed you want to achieve")]
 	public int maxSpeed = 5;
 	[Tooltip("The higher the number the faster it will stop")]
@@ -233,10 +213,7 @@ public class PlayerMovementScript : MonoBehaviour {
 
 	[Tooltip("Tells us weather the player is grounded or not.")]
 	public bool grounded;
-	/*
-	* checks if our player is contacting the ground in the angle less than 60 degrees
-	*	if it is, set groudede to true
-	*/
+
 	void OnCollisionStay(Collision other){
 		foreach(ContactPoint contact in other.contacts){
 			if(Vector2.Angle(contact.normal,Vector3.up) < 60){
@@ -244,9 +221,7 @@ public class PlayerMovementScript : MonoBehaviour {
 			}
 		}
 	}
-	/*
-	* On collision exit set grounded to false
-	*/
+
 	void OnCollisionExit ()
 	{
 		grounded = false;
@@ -258,18 +233,12 @@ public class PlayerMovementScript : MonoBehaviour {
 	private string currentWeapo;
 	[Tooltip("Put 'Player' layer here")]
 	[Header("Shooting Properties")]
-	private LayerMask ignoreLayer;//to ignore player layer
+	private LayerMask ignoreLayer;
 	Ray ray1, ray2, ray3, ray4, ray5, ray6, ray7, ray8, ray9;
 	private float rayDetectorMeeleSpace = 0.15f;
 	private float offsetStart = 0.05f;
 	[Tooltip("Put BulletSpawn gameobject here, palce from where bullets are created.")]
-	public Transform bulletSpawn; //from here we shoot a ray to check where we hit him;
-	/*
-	* This method casts 9 rays in different directions. ( SEE scene tab and you will see 9 rays differently coloured).
-	* Used to widley detect enemy infront and increase meele hit detectivity.
-	* Checks for cooldown after last preformed meele attack.
-	*/
-
+	public Transform bulletSpawn;
 
 	public bool been_to_meele_anim = false;
 	private void RaycastForMeleeAttacks(){
@@ -278,7 +247,6 @@ public class PlayerMovementScript : MonoBehaviour {
 		if (meleeAttack_cooldown > -5) {
 			meleeAttack_cooldown -= 1 * Time.deltaTime;
 		}
-
 
 		GunInventory inv = GetComponent<GunInventory>();
 		if (inv && inv.currentGun) {
@@ -324,10 +292,6 @@ public class PlayerMovementScript : MonoBehaviour {
 
 	}
 
-	/*
-	 *Method that is called if the waepon hit animation has been triggered the first time via Q input
-	 *and if is, it will search for target and make damage
-	 */
 	IEnumerator MeeleAttackWeaponHit(){
 		if (Physics.Raycast (ray1, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray2, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray3, out hitInfo, 2f, ~ignoreLayer)
 			|| Physics.Raycast (ray4, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray5, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray6, out hitInfo, 2f, ~ignoreLayer)
@@ -344,13 +308,10 @@ public class PlayerMovementScript : MonoBehaviour {
 	}
 
 	[Header("BloodForMelleAttaacks")]
-	RaycastHit hit;//stores info of hit;
+	RaycastHit hit;
 	[Tooltip("Put your particle blood effect here.")]
-	public GameObject bloodEffect;//blod effect prefab;
-	/*
-	* Upon hitting enemy it calls this method, gives it raycast hit info 
-	* and at that position it creates our blood prefab.
-	*/
+	public GameObject bloodEffect;
+
 	void InstantiateBlood (RaycastHit _hitPos,bool swordHitWithGunOrNot) {		
 
 		if (currentWeapo == "gun") {

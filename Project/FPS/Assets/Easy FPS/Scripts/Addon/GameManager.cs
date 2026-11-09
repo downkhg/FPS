@@ -39,6 +39,12 @@ public class GameManager : MonoBehaviour
             cPlayer.isPlayer = true;
             cPlayer.Initialize(mainCamera, secondCamera);
 
+            // 플레이어에 PlayerController가 없으면 자동 추가
+            if (!cPlayer.GetComponent<PlayerController>())
+            {
+                cPlayer.gameObject.AddComponent<PlayerController>();
+            }
+
             if (mainCamera)
             {
                 mainCamera.parent = cPlayer.ViewPivot;
@@ -55,6 +61,12 @@ public class GameManager : MonoBehaviour
         {
             cNpc.isPlayer = false;
             cNpc.Initialize(null, null);
+
+            // NPC에 AIController가 없으면 자동 추가
+            if (!cNpc.GetComponent<AIController>())
+            {
+                cNpc.gameObject.AddComponent<AIController>();
+            }
         }
     }
 
@@ -66,11 +78,11 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
-        // 각 Player 인스턴스의 Update()에서 자신의 총기 및 컴포넌트를 직접 업데이트합니다.
+        
     }
 
     private void FixedUpdate()
     {
-        // 각 Player 인스턴스의 FixedUpdate()에서 자신의 총기 및 컴포넌트를 직접 업데이트합니다.
+        
     }
 }

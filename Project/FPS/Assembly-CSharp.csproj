@@ -68,6 +68,8 @@
     <Compile Include="Assets\Easy FPS\Scripts\GunInventory.cs" />
     <Compile Include="Assets\Easy FPS\Scripts\BulletScript.cs" />
     <Compile Include="Assets\Easy FPS\Scripts\PlayerMovementScript.cs" />
+    <Compile Include="Assets\Easy FPS\Scripts\Addon\PlayerController.cs" />
+    <Compile Include="Assets\Easy FPS\Scripts\Addon\AIController.cs" />
     <Compile Include="Assets\Easy FPS\Scripts\DestroyAfterTimeParticle.cs" />
     <Compile Include="Assets\Easy FPS\Scripts\Addon\GameManager.cs" />
   </ItemGroup>

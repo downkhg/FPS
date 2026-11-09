@@ -22,6 +22,8 @@ public class GunInventory : MonoBehaviour {
 
 	private Player playerComponent;
 
+	public int CurrentGunCounter => currentGunCounter;
+
 	void Awake(){
 		playerComponent = GetComponent<Player>();
 	}
@@ -38,40 +40,34 @@ public class GunInventory : MonoBehaviour {
             print("No guns in the inventory");
     }
 
-	/*
-	*Waits some time then calls for a waepon spawn
-	*/
 	IEnumerator SpawnWeaponUponStart(){
 		yield return new WaitForSeconds (0.5f);
 		StartCoroutine(Spawn(0));
 	}
 
-	/* 
-	 * Calculation switchWeaponCoolDown so it does not allow us to change weapons millions of times per second,
-	 * and at some point we will change the switchWeaponCoolDown to a negative value so we have to wait until it
-	 * overcomes 0.0f. 
-	 */
 	void Update(){
-		if (playerComponent != null && !playerComponent.isPlayer) return;
-
 		switchWeaponCooldown += 1 * Time.deltaTime;
-		if(switchWeaponCooldown > 1.2f && Input.GetKey(KeyCode.LeftShift) == false){
-			Create_Weapon();
-		}
-
 	}
 
+	public void SwitchWeapon(int index){
+		if (gunsIHave == null || gunsIHave.Count == 0) return;
+		if (index < 0 || index >= gunsIHave.Count) return;
+		if (currentGunCounter == index && currentGun != null) return;
+		if (switchWeaponCooldown < 0.5f) return;
 
-	/*
-	 * Grabing the icons from the Resources/Weapo_Icons/ -> gun name of the image.
-	 * (!!!!!!!1!READ IMPORTANT) 
-	 * the weapon image to respond the weapon must have the same name as the WEAPON  with the extension _img.
-	 * So if the gun prefab is called "Sniper_Piper" the corresponding image must be located in the location form previous,
-	 * with the name "Sniper_Piper_img".
-	 */
+		switchWeaponCooldown = 0;
+		currentGunCounter = index;
+		StartCoroutine(Spawn(currentGunCounter));
+	}
+
+	public void NextWeapon(){
+		if (gunsIHave == null || gunsIHave.Count == 0) return;
+		int next = (currentGunCounter + 1) % gunsIHave.Count;
+		SwitchWeapon(next);
+	}
+
 	IEnumerator UpdateIconsFromResources(){
 		yield return new WaitForEndOfFrame ();
-
 		UpdateIconsFromResouces();
     }
 
@@ -85,94 +81,46 @@ public class GunInventory : MonoBehaviour {
     }
 
 	/*
-	 * If used scroll mousewheel or arrows up and down the player will change weapon.
-	 * GunPlaceSpawner is child of Player gameObject, where the gun is going to spawn and transition to our
-	 * gun properties value.
-	 */
-	void Create_Weapon(){
-
-		/*
-		 * Scrolling wheel waepons changing
-		 */
-		if(Input.GetKeyDown(KeyCode.UpArrow) || Input.GetAxis("Mouse ScrollWheel") > 0){
-			switchWeaponCooldown = 0;
-
-			currentGunCounter++;
-			if(currentGunCounter > gunsIHave.Count-1){
-				currentGunCounter = 0;
-			}
-			StartCoroutine(Spawn(currentGunCounter));
-		}
-		if(Input.GetKeyDown(KeyCode.DownArrow) || Input.GetAxis("Mouse ScrollWheel") < 0){
-			switchWeaponCooldown = 0;
-
-			currentGunCounter--;
-			if(currentGunCounter < 0){
-				currentGunCounter = gunsIHave.Count-1;
-			}
-			StartCoroutine(Spawn(currentGunCounter));
-		}
-
-		/*
-		 * Keypad numbers
-		 */
-		if(Input.GetKeyDown(KeyCode.Alpha1) && currentGunCounter != 0){
-			switchWeaponCooldown = 0;
-			currentGunCounter = 0;
-            StartCoroutine(Spawn(currentGunCounter));
-        }
-		if(Input.GetKeyDown(KeyCode.Alpha2) && currentGunCounter != 1){
-			switchWeaponCooldown = 0;
-			currentGunCounter = 1;
-            StartCoroutine(Spawn(currentGunCounter));
-        }
-
-	}
-
-	/*
-	 * This method is called from Create_Weapon() upon pressing arrow up/down or scrolling the mouse wheel,
+	 * This method is called upon pressing weapon change,
 	 * It will check if we carry a gun and destroy it, and its then going to load a gun prefab from our Resources Folder.
 	 */
 	IEnumerator Spawn(int _redniBroj){
 		if (weaponChanging)
 			weaponChanging.Play ();
-		else
-			print ("Missing Weapon Changing music clip.");
+
 		if(currentGun){
 			if(currentGun.name.Contains("Gun")){
+				if (currentHAndsAnimator)
+					currentHAndsAnimator.SetBool("changingWeapon", true);
 
-				currentHAndsAnimator.SetBool("changingWeapon", true);
-
-				yield return new WaitForSeconds(0.8f);//0.8 time to change waepon, but since there is no change weapon animation there is no need to wait fo weapon taken down
+				yield return new WaitForSeconds(0.4f);
 				Destroy(currentGun);
 
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
+				currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
 				currentGun.gameObject.name = currentGun.name + "(Clone)_" + this.gameObject.name;
                 AssignHandsAnimator(currentGun);
-				
-				Debug.Log("Instantiate:"+currentGun.name);
 			}
 			else if(currentGun.name.Contains("Sword")){
-				currentHAndsAnimator.SetBool("changingWeapon", true);
-				yield return new WaitForSeconds(0.25f);//0.5f
+				if (currentHAndsAnimator)
+					currentHAndsAnimator.SetBool("changingWeapon", true);
+				yield return new WaitForSeconds(0.25f);
 
-				currentHAndsAnimator.SetBool("changingWeapon", false);
+				if (currentHAndsAnimator)
+					currentHAndsAnimator.SetBool("changingWeapon", false);
 
-				yield return new WaitForSeconds(0.6f);//1
+				yield return new WaitForSeconds(0.4f);
 				Destroy(currentGun);
 
 				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-				currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
+				currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
 				AssignHandsAnimator(currentGun);
-                Debug.Log("Instantiate:" + currentGun.name);
             }
 		}
 		else{
 			GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-			currentGun = (GameObject) Instantiate(resource, transform.position, /*gameObject.transform.rotation*/Quaternion.identity);
+			currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
             AssignHandsAnimator(currentGun);
-            Debug.Log("Instantiate:" + currentGun.name);
         }
 
 		// 무기 생성 완료 후 Player에 의존성 갱신 알림
@@ -185,10 +133,6 @@ public class GunInventory : MonoBehaviour {
 		}
 	}
 
-
-	/*
-	* Assigns Animator to the script so we can use it in other scripts of a current gun.
-	*/
 	void AssignHandsAnimator(GameObject _currentGun){
 		if(_currentGun.name.Contains("Gun")){
 			GunScript gs = currentGun.GetComponent<GunScript>();
@@ -196,10 +140,6 @@ public class GunInventory : MonoBehaviour {
 		}
 	}
 
-	/*
-	 * Unity buil-in method to draw GUI.
-	 * From here I am listing thourhg guns I have and drawing corresponding images on the sceen.
-	 */
 	void OnGUI(){
 		if (playerComponent != null && !playerComponent.isPlayer) return;
 
@@ -215,7 +155,6 @@ public class GunInventory : MonoBehaviour {
 				DrawCorrespondingImage(i);
 			}
 		}
-
 	}
 
 	[Header("GUI Gun preview variables")]
@@ -227,11 +166,7 @@ public class GunInventory : MonoBehaviour {
 	public Vector2 beginPosition;
 	[Tooltip("Size of icon in percetanges of screen.")]
 	public Vector2 size;
-	/*
-	 * Passing the image number and gun list have the same sort,
-	 * so it will fitthe gun image to our current gun or guns we have.
-	 * The curent gun selected image has their image slightly enlared for some value.
-	 */
+
 	void DrawCorrespondingImage(int _number){
 		if (icons == null || _number >= icons.Length || icons[_number] == null)
 			return;
@@ -243,41 +178,35 @@ public class GunInventory : MonoBehaviour {
 
 		if(menuStyle == MenuStyle.horizontal){
 			if(isCurrentSelected){
-				GUI.DrawTexture(new Rect(vec2(beginPosition).x +(_number*position_x(spacing)),vec2(beginPosition).y,//position variables
-					vec2(size).x, vec2(size).y),//size
+				GUI.DrawTexture(new Rect(vec2(beginPosition).x +(_number*position_x(spacing)),vec2(beginPosition).y,
+					vec2(size).x, vec2(size).y),
 					icons[_number]);
 			}
 			else{			
-				GUI.DrawTexture(new Rect(vec2(beginPosition).x +(_number*position_x(spacing) + 10),vec2(beginPosition).y + 10,//position variables
-					vec2(size).x - 20, vec2(size).y- 20),//size
+				GUI.DrawTexture(new Rect(vec2(beginPosition).x +(_number*position_x(spacing) + 10),vec2(beginPosition).y + 10,
+					vec2(size).x - 20, vec2(size).y- 20),
 					icons[_number]);
 			}
 		}
 		else if(menuStyle == MenuStyle.vertical){
 			if(isCurrentSelected){
-				GUI.DrawTexture(new Rect(vec2(beginPosition).x,vec2(beginPosition).y +(_number*position_y(spacing)),//position variables
-					vec2(size).x, vec2(size).y),//size
+				GUI.DrawTexture(new Rect(vec2(beginPosition).x,vec2(beginPosition).y +(_number*position_y(spacing)),
+					vec2(size).x, vec2(size).y),
 					icons[_number]);
 			}
 			else{			
-				GUI.DrawTexture(new Rect(vec2(beginPosition).x,vec2(beginPosition).y + 10  +(_number*position_y(spacing)),//position variables
-					vec2(size).x - 20, vec2(size).y- 20),//size
+				GUI.DrawTexture(new Rect(vec2(beginPosition).x,vec2(beginPosition).y + 10  +(_number*position_y(spacing)),
+					vec2(size).x - 20, vec2(size).y- 20),
 					icons[_number]);
 			}
 		}
 	}
 
-	/*
-	 * Call this method when player dies.
-	 */
 	public void DeadMethod(){
 		Destroy (currentGun);
 		Destroy (this);
 	}
 
-
-	//#####		RETURN THE SIZE AND POSITION for GUI images
-	//(we pass in the percentage and it returns some number to appear in that percentage on the sceen) ##################
 	private float position_x(float var){
 		return Screen.width * var / 100;
 	}
@@ -285,22 +214,10 @@ public class GunInventory : MonoBehaviour {
 	{
 		return Screen.height * var / 100;
 	}
-	private float size_x(float var)
-	{
-		return Screen.width * var / 100;
-	}
-	private float size_y(float var)
-	{
-		return Screen.height * var / 100;
-	}
 	private Vector2 vec2(Vector2 _vec2){
 		return new Vector2(Screen.width * _vec2.x / 100, Screen.height * _vec2.y / 100);
 	}
-	//######################################################
 
-	/*
-	 * Sounds
-	 */
 	[Header("Sounds")]
 	[Tooltip("Sound of weapon changing.")]
 	public AudioSource weaponChanging;
