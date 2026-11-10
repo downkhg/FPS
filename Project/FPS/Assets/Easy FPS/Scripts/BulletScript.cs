@@ -17,56 +17,43 @@ public class BulletScript : MonoBehaviour {
 
     private void Start()
     {
-		Debug.Log($"{gameObject.name}.Start()");
     }
-	/*
-	* Uppon bullet creation with this script attatched,
-	* bullet creates a raycast which searches for corresponding tags.
-	* If raycast finds somethig it will create a decal of corresponding tag.
-	*/
+
 	Rigidbody rigidBodyHit;
 
     void Update () {
-        // 발사자 콜라이더 내부에서 시작되어 즉시 씹히는 현상 방지를 위해 0.1f 오프셋 적용
         Vector3 rayOrigin = transform.position + transform.forward * 0.1f;
 
         if (Physics.Raycast(rayOrigin, transform.forward, out hit, maxDistance, ~ignoreLayer)){
 			if(decalHitWall){
-				string name = "empty";
-				if(hit.transform.tag == "LevelPart"){
-					name = Instantiate(decalHitWall, hit.point + hit.normal * floatInfrontOfWall, Quaternion.LookRotation(hit.normal)).name;
+				if(hit.transform.CompareTag("LevelPart")){
+					Instantiate(decalHitWall, hit.point + hit.normal * floatInfrontOfWall, Quaternion.LookRotation(hit.normal));
 					Destroy(gameObject);
+					return;
 				}
-				if(hit.transform.tag == "Dummie"){
-                    name = Instantiate(bloodEffect, hit.point, Quaternion.LookRotation(hit.normal)).name;
+				if(hit.transform.CompareTag("Dummie") || hit.transform.CompareTag("Player")){
+                    if (bloodEffect)
+						Instantiate(bloodEffect, hit.point, Quaternion.LookRotation(hit.normal));
 					Destroy(gameObject);
+					return;
 				}
-				if(hit.transform.tag == "PhysicObject")
+				if(hit.transform.CompareTag("PhysicObject"))
 				{
-					Rigidbody rigidBodyHit = hit.transform.GetComponent<Rigidbody>();
-
-                    RigidBodyPhysic(rigidBodyHit, transform.forward, 100);
-
-                    Debug.Log($"BulletScript: {hit.transform.gameObject.name}");
+					Rigidbody rbHit = hit.transform.GetComponent<Rigidbody>();
+                    RigidBodyPhysic(rbHit, transform.forward, 100);
 				}
-				Debug.Log($"{name}");
 			}		
 			Destroy(gameObject);
 		}
 		Destroy(gameObject, 0.1f);
-
-
 	}
-
 
 	void RigidBodyPhysic(Rigidbody rigidbody, Vector3 vShotDir, float power)
 	{
 		if (rigidbody == null)
 		{
-			Debug.Log("RigidBodyPhysic is null");
 			return;
         }
 		rigidbody.AddForce(vShotDir * power);
 	}
-
 }

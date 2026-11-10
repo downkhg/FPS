@@ -34,16 +34,30 @@ public class GameManager : MonoBehaviour
 
     public void Initialize()
     {
+        // 카메라 오브젝트에 실수로 부착된 중복 Player 컴포넌트가 있다면 제거
+        if (mainCamera)
+        {
+            Player strayPlayerOnCam = mainCamera.GetComponent<Player>();
+            if (strayPlayerOnCam != null && strayPlayerOnCam != cPlayer)
+            {
+                Destroy(strayPlayerOnCam);
+            }
+        }
+
         if (cPlayer)
         {
-            cPlayer.isPlayer = true;
-            cPlayer.Initialize(mainCamera, secondCamera);
-
-            // 플레이어에 PlayerController가 없으면 자동 추가
-            if (!cPlayer.GetComponent<PlayerController>())
+            // 동일 오브젝트에 중복 부착된 Player 컴포넌트 정리
+            Player[] playerComps = cPlayer.GetComponents<Player>();
+            for (int i = 0; i < playerComps.Length; i++)
             {
-                cPlayer.gameObject.AddComponent<PlayerController>();
+                if (playerComps[i] != cPlayer)
+                {
+                    Destroy(playerComps[i]);
+                }
             }
+
+            cPlayer.isPlayer = true;
+            cPlayer.EnsureComponents();
 
             if (mainCamera)
             {
@@ -53,13 +67,31 @@ public class GameManager : MonoBehaviour
                 cameraComponent = mainCamera.GetComponent<Camera>();
             }
 
+            cPlayer.Initialize(mainCamera, secondCamera);
+
             if (MouseLookScript)
                 MouseLookScript.Initialize(mainCamera);
+
+            // 플레이어에 PlayerController가 없으면 자동 추가
+            if (!cPlayer.GetComponent<PlayerController>())
+            {
+                cPlayer.gameObject.AddComponent<PlayerController>();
+            }
         }
 
         if (cNpc)
         {
+            Player[] npcComps = cNpc.GetComponents<Player>();
+            for (int i = 0; i < npcComps.Length; i++)
+            {
+                if (npcComps[i] != cNpc)
+                {
+                    Destroy(npcComps[i]);
+                }
+            }
+
             cNpc.isPlayer = false;
+            cNpc.EnsureComponents();
             cNpc.Initialize(null, null);
 
             // NPC에 AIController가 없으면 자동 추가
@@ -67,6 +99,12 @@ public class GameManager : MonoBehaviour
             {
                 cNpc.gameObject.AddComponent<AIController>();
             }
+        }
+
+        // 디버거가 씬에 없으면 GameManager에 자동 부착
+        if (!FindFirstObjectByType<ControllerDebugger>())
+        {
+            gameObject.AddComponent<ControllerDebugger>();
         }
     }
 

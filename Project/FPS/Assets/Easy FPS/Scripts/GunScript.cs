@@ -40,6 +40,14 @@ public class GunScript : MonoBehaviour {
 		
 	}
 
+	void OnDisable()
+	{
+		reloading = false;
+		meeleAttack = false;
+		aiming = false;
+		isAimingControlled = false;
+	}
+
     public void Initialize(Transform _trPlayer, MouseLookScript _mouseLockScript, Transform trCamera, Camera _cameraSecond, GameObject objBulletBulletSpawnPlace, AudioSource asHitMarker)
     {
 		this.trPlayer = _trPlayer;
@@ -97,7 +105,6 @@ public class GunScript : MonoBehaviour {
 
     public void Start()
     {
-		Debug.Log(this.gameObject.name + ".Start("+ this.GetType().Name +")");
     }
 
     public void UpdateProcess()
@@ -264,6 +271,25 @@ public class GunScript : MonoBehaviour {
 	private Camera secondCamera;
 
 	void PositionGun(){
+		// Player(ViewPivot/Camera)의 자식 오브젝트로 귀속된 경우 로컬 좌표만으로 위치 및 반동 제어
+		if (transform.parent != null)
+		{
+			Vector3 targetLocalPos = new Vector3(
+				-(currentGunPosition.x + currentRecoilXPos),
+				(currentGunPosition.y + currentRecoilYPos),
+				(currentGunPosition.z + currentRecoilZPos)
+			);
+			transform.localPosition = Vector3.SmoothDamp(transform.localPosition, targetLocalPos, ref velV, 0f);
+
+			if (playerMovementScript)
+				playerMovementScript.cameraPosition = new Vector3(currentRecoilXPos, currentRecoilYPos, 0);
+
+			currentRecoilZPos = Mathf.SmoothDamp(currentRecoilZPos, 0, ref velocity_z_recoil, recoilOverTime_z);
+			currentRecoilXPos = Mathf.SmoothDamp(currentRecoilXPos, 0, ref velocity_x_recoil, recoilOverTime_x);
+			currentRecoilYPos = Mathf.SmoothDamp(currentRecoilYPos, 0, ref velocity_y_recoil, recoilOverTime_y);
+			return;
+		}
+
 		Transform refTransform = mainCamera != null ? mainCamera : trPlayer;
 
 		if (refTransform)
@@ -299,6 +325,33 @@ public class GunScript : MonoBehaviour {
 	public Vector2 forwardRotationAmount = Vector2.one;
 
 	void RotationGun(){
+		if (transform.parent != null)
+		{
+			if (m_cMouseLockScript)
+			{
+				rotationDeltaY = m_cMouseLockScript.currentYRotation - rotationLastY;
+				rotationDeltaX = m_cMouseLockScript.currentCameraXRotation - rotationLastX;
+
+				rotationLastY = m_cMouseLockScript.currentYRotation;
+				rotationLastX = m_cMouseLockScript.currentCameraXRotation;
+
+				angularVelocityY = Mathf.Lerp(angularVelocityY, rotationDeltaY, Time.deltaTime * 5);
+				angularVelocityX = Mathf.Lerp(angularVelocityX, rotationDeltaX, Time.deltaTime * 5);
+
+				// 부모(Camera/ViewPivot)가 이미 시선 회전을 담당하므로 로컬 흔들림(Sway)만 반영
+				transform.localRotation = Quaternion.Euler(
+					angularVelocityX * forwardRotationAmount.x,
+					angularVelocityY * forwardRotationAmount.y,
+					0f
+				);
+			}
+			else
+			{
+				transform.localRotation = Quaternion.identity;
+			}
+			return;
+		}
+
 		if (m_cMouseLockScript)
 		{
 			rotationDeltaY = m_cMouseLockScript.currentYRotation - rotationLastY;
@@ -334,9 +387,10 @@ public class GunScript : MonoBehaviour {
 			m_cMouseLockScript.wantedCameraXRotation -= Mathf.Abs(currentRecoilYPos * gunPrecision);
 			m_cMouseLockScript.wantedYRotation -= (currentRecoilXPos * gunPrecision);
 		}
-		else if (trPlayer) { 			
+		else if (transform.parent == null && trPlayer)
+		{
 			transform.rotation = trPlayer.rotation;
-        }
+		}
 
         expandValues_crosshair += new Vector2(6, 12);
 	}
@@ -364,8 +418,8 @@ public class GunScript : MonoBehaviour {
 		}
 		else
 		{
+			// NPC: 총알 스폰 기본 위치 결정 (가슴/눈높이 앞)
 			Vector3 forwardDir = trPlayer != null ? trPlayer.forward : transform.forward;
-			spawnRotation = Quaternion.LookRotation(forwardDir, Vector3.up);
 
 			if (bulletSpawnPlace != null && bulletSpawnPlace != trPlayer.gameObject)
 				spawnPosition = bulletSpawnPlace.transform.position;
@@ -373,6 +427,20 @@ public class GunScript : MonoBehaviour {
 				spawnPosition = trPlayer.position + (Vector3.up * 1.4f) + (forwardDir * 0.4f);
 			else
 				spawnPosition = transform.position + (forwardDir * 0.4f);
+
+			// NPC의 조준 목표점(적의 중심)이 있는 경우 목표를 향한 3D 방향으로 정밀 조준
+			if (playerComponent != null && playerComponent.AimTargetPosition.HasValue)
+			{
+				Vector3 targetPos = playerComponent.AimTargetPosition.Value;
+				Vector3 aimDir = (targetPos - spawnPosition).normalized;
+				if (aimDir.sqrMagnitude > 0.001f)
+				{
+					spawnRotation = Quaternion.LookRotation(aimDir, Vector3.up);
+					return;
+				}
+			}
+
+			spawnRotation = Quaternion.LookRotation(forwardDir, Vector3.up);
 		}
 	}
 
@@ -431,8 +499,7 @@ public class GunScript : MonoBehaviour {
 
 				if (bullet)
 				{
-					GameObject objInstantiate = Instantiate(bullet, spawnPos, spawnRot);
-					Debug.Log($"Instantiate Bullet at {spawnPos} rot {spawnRot.eulerAngles}");
+					Instantiate(bullet, spawnPos, spawnRot);
 				}
 				else
 				{

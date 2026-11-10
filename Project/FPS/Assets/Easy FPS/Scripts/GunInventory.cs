@@ -7,9 +7,8 @@ public enum MenuStyle{
 }
 
 public class GunInventory : MonoBehaviour {
-	[Tooltip("Current weapon gameObject.")]
+	[Tooltip("Current weapon gameObject (Synced from Player).")]
 	public GameObject currentGun;
-	private Animator currentHAndsAnimator;
 	private int currentGunCounter = 0;
 
 	[Tooltip("Put Strings of weapon objects from Resources Folder.")]
@@ -22,7 +21,7 @@ public class GunInventory : MonoBehaviour {
 
 	private Player playerComponent;
 
-	public int CurrentGunCounter => currentGunCounter;
+	public int CurrentGunCounter => playerComponent != null ? playerComponent.CurrentWeaponIndex : currentGunCounter;
 
 	void Awake(){
 		playerComponent = GetComponent<Player>();
@@ -34,15 +33,21 @@ public class GunInventory : MonoBehaviour {
 			playerComponent = GetComponent<Player>();
 
 		UpdateIconsFromResouces();
-        StartCoroutine(Spawn(currentGunCounter));
 
-        if (gunsIHave.Count == 0)
-            print("No guns in the inventory");
-    }
+		if (playerComponent && playerComponent.Gun)
+		{
+			currentGunCounter = playerComponent.CurrentWeaponIndex;
+			currentGun = playerComponent.Gun.gameObject;
+		}
+	}
 
-	IEnumerator SpawnWeaponUponStart(){
-		yield return new WaitForSeconds (0.5f);
-		StartCoroutine(Spawn(0));
+	/// <summary>
+	/// Player(마리오네트)에서 무기가 전환될 때 HUD 표시용 참조를 동기화합니다.
+	/// </summary>
+	public void SyncWeaponState(int weaponIndex, GameObject activeGunObj)
+	{
+		currentGunCounter = weaponIndex;
+		currentGun = activeGunObj;
 	}
 
 	void Update(){
@@ -50,93 +55,33 @@ public class GunInventory : MonoBehaviour {
 	}
 
 	public void SwitchWeapon(int index){
-		if (gunsIHave == null || gunsIHave.Count == 0) return;
-		if (index < 0 || index >= gunsIHave.Count) return;
-		if (currentGunCounter == index && currentGun != null) return;
-		if (switchWeaponCooldown < 0.5f) return;
+		if (!playerComponent)
+			playerComponent = GetComponent<Player>();
 
-		switchWeaponCooldown = 0;
-		currentGunCounter = index;
-		StartCoroutine(Spawn(currentGunCounter));
+		if (playerComponent)
+		{
+			playerComponent.SwitchWeapon(index);
+		}
 	}
 
 	public void NextWeapon(){
-		if (gunsIHave == null || gunsIHave.Count == 0) return;
-		int next = (currentGunCounter + 1) % gunsIHave.Count;
-		SwitchWeapon(next);
-	}
+		if (!playerComponent)
+			playerComponent = GetComponent<Player>();
 
-	IEnumerator UpdateIconsFromResources(){
-		yield return new WaitForEndOfFrame ();
-		UpdateIconsFromResouces();
-    }
+		if (playerComponent)
+		{
+			playerComponent.NextWeapon();
+		}
+	}
 
 	void UpdateIconsFromResouces()
 	{
-        icons = new Texture[gunsIHave.Count];
-        for (int i = 0; i < gunsIHave.Count; i++)
-        {
-            icons[i] = (Texture)Resources.Load("Weap_Icons/" + gunsIHave[i].ToString() + "_img");
-        }
-    }
+		if (gunsIHave == null) return;
 
-	/*
-	 * This method is called upon pressing weapon change,
-	 * It will check if we carry a gun and destroy it, and its then going to load a gun prefab from our Resources Folder.
-	 */
-	IEnumerator Spawn(int _redniBroj){
-		if (weaponChanging)
-			weaponChanging.Play ();
-
-		if(currentGun){
-			if(currentGun.name.Contains("Gun")){
-				if (currentHAndsAnimator)
-					currentHAndsAnimator.SetBool("changingWeapon", true);
-
-				yield return new WaitForSeconds(0.4f);
-				Destroy(currentGun);
-
-				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-				currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
-				currentGun.gameObject.name = currentGun.name + "(Clone)_" + this.gameObject.name;
-                AssignHandsAnimator(currentGun);
-			}
-			else if(currentGun.name.Contains("Sword")){
-				if (currentHAndsAnimator)
-					currentHAndsAnimator.SetBool("changingWeapon", true);
-				yield return new WaitForSeconds(0.25f);
-
-				if (currentHAndsAnimator)
-					currentHAndsAnimator.SetBool("changingWeapon", false);
-
-				yield return new WaitForSeconds(0.4f);
-				Destroy(currentGun);
-
-				GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-				currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
-				AssignHandsAnimator(currentGun);
-            }
-		}
-		else{
-			GameObject resource = (GameObject) Resources.Load(gunsIHave[_redniBroj].ToString());
-			currentGun = (GameObject) Instantiate(resource, transform.position, Quaternion.identity);
-            AssignHandsAnimator(currentGun);
-        }
-
-		// 무기 생성 완료 후 Player에 의존성 갱신 알림
-		if (playerComponent)
+		icons = new Texture[gunsIHave.Count];
+		for (int i = 0; i < gunsIHave.Count; i++)
 		{
-			playerComponent.GunChangeSetUpdate(
-				playerComponent.isPlayer ? GameManager.instance?.MainCamera : null,
-				playerComponent.isPlayer ? GameManager.instance?.SecondCamera : null
-			);
-		}
-	}
-
-	void AssignHandsAnimator(GameObject _currentGun){
-		if(_currentGun.name.Contains("Gun")){
-			GunScript gs = currentGun.GetComponent<GunScript>();
-			if (gs) currentHAndsAnimator = gs.handsAnimator;
+			icons[i] = (Texture)Resources.Load("Weap_Icons/" + gunsIHave[i].ToString() + "_img");
 		}
 	}
 
@@ -174,7 +119,7 @@ public class GunInventory : MonoBehaviour {
 		if (_number >= gunsIHave.Count)
 			return;
 
-		bool isCurrentSelected = currentGun.name.Contains(gunsIHave[_number]);
+		bool isCurrentSelected = (CurrentGunCounter == _number);
 
 		if(menuStyle == MenuStyle.horizontal){
 			if(isCurrentSelected){
@@ -203,7 +148,6 @@ public class GunInventory : MonoBehaviour {
 	}
 
 	public void DeadMethod(){
-		Destroy (currentGun);
 		Destroy (this);
 	}
 

@@ -248,10 +248,9 @@ public class PlayerMovementScript : MonoBehaviour {
 			meleeAttack_cooldown -= 1 * Time.deltaTime;
 		}
 
-		GunInventory inv = GetComponent<GunInventory>();
-		if (inv && inv.currentGun) {
-			if (inv.currentGun.GetComponent<GunScript> ()) 
-				currentWeapo = "gun";
+		GunScript gs = playerComponent ? playerComponent.Gun : null;
+		if (gs != null) {
+			currentWeapo = "gun";
 		}
 
 		//middle row
@@ -277,16 +276,13 @@ public class PlayerMovementScript : MonoBehaviour {
 		Debug.DrawRay (ray8.origin, ray8.direction, Color.yellow);
 		Debug.DrawRay (ray9.origin, ray9.direction, Color.yellow);
 
-		if (inv && inv.currentGun) {
-			GunScript gs = inv.currentGun.GetComponent<GunScript>();
-			if (gs) {
-				if (gs.meeleAttack == false) {
-					been_to_meele_anim = false;
-				}
-				if (gs.meeleAttack == true && been_to_meele_anim == false) {
-					been_to_meele_anim = true;
-					StartCoroutine ("MeeleAttackWeaponHit");
-				}
+		if (gs != null) {
+			if (gs.meeleAttack == false) {
+				been_to_meele_anim = false;
+			}
+			if (gs.meeleAttack == true && been_to_meele_anim == false) {
+				been_to_meele_anim = true;
+				StartCoroutine ("MeeleAttackWeaponHit");
 			}
 		}
 
