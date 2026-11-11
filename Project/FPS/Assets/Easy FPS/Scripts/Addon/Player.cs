@@ -11,11 +11,11 @@ public class Player : MonoBehaviour
     [SerializeField] Transform viewPivot;
     [SerializeField] GameObject bulletSpawnPlace;
 
-    [Header("Weapon Management (Marionette Direct Control)")]
-    [Tooltip("보유 무기 프리팹 이름 목록 (Resources 폴더 기준)")]
+    [Header("Weapon Management (Runtime Weapon Pool)")]
+    [Tooltip("런타임에 생성하여 풀(Pool)로 등록할 무기 프리팹 목록 (Resources 폴더 기준)")]
     public List<string> weaponPrefabNames = new List<string> { "NewGun_semi", "NewGun_auto" };
-    [Tooltip("자식으로 등록/생성된 무기 인스턴스 목록")]
-    [SerializeField] private List<GunScript> weapons = new List<GunScript>();
+    [Tooltip("런타임에 생성/등록되어 SetActive로 제어되는 무기 인스턴스 풀")]
+    [SerializeField] private List<GunScript> weaponPool = new List<GunScript>();
     [SerializeField] private int currentWeaponIndex = 0;
 
     MouseLookScript m_cMouseLockScript;
@@ -32,7 +32,7 @@ public class Player : MonoBehaviour
     public Transform ViewPivot => viewPivot ? viewPivot : this.transform;
     public GameObject BulletSpawnPlace => bulletSpawnPlace;
     public int CurrentWeaponIndex => currentWeaponIndex;
-    public IReadOnlyList<GunScript> Weapons => weapons;
+    public IReadOnlyList<GunScript> Weapons => weaponPool;
 
     // NPC 또는 컨트롤러가 조준하고 있는 월드 목표 지점
     public Vector3? AimTargetPosition { get; set; }
@@ -120,67 +120,90 @@ public class Player : MonoBehaviour
     }
 
     /// <summary>
-    /// 무기를 씬 루트에 매번 생성/파괴하지 않고, Player의 자식 계층으로 한 번만 배치하여 활성화/비활성화로 제어합니다.
+    /// PC와 NPC 프리팹을 가볍고 독립적으로 유지할 수 있도록,
+    /// 사용할 무기 목록을 런타임에 1회 생성(Instantiate)하여 자식 풀(Pool)로 구축하고
+    /// 이후 무기 교체는 SetActive(true/false)로만 처리합니다.
     /// </summary>
     private void InitializeWeapons()
     {
         Transform weaponParent = (isPlayer && trCurrentCamera != null) ? trCurrentCamera : ViewPivot;
 
-        // GunInventory에 설정된 무기 목록이 있다면 동기화
+        // GunInventory에 무기 목록이 지정되어 있다면 우선 동기화
         if (gunInventory != null && gunInventory.gunsIHave != null && gunInventory.gunsIHave.Count > 0)
         {
             weaponPrefabNames = new List<string>(gunInventory.gunsIHave);
         }
 
-        // 이미 자식 계층에 배치된 GunScript가 있는지 확인
-        weapons.RemoveAll(w => w == null);
-        if (weapons.Count == 0)
-        {
-            GunScript[] existingChildGuns = GetComponentsInChildren<GunScript>(true);
-            if (existingChildGuns != null && existingChildGuns.Length > 0)
-            {
-                weapons.AddRange(existingChildGuns);
-            }
-        }
+        // 1. 기존 풀에서 유효하지 않은 참조 제거
+        weaponPool.RemoveAll(w => w == null);
 
-        // 자식에 무기가 아직 없다면 Resources에서 로드하여 Player(weaponParent)의 자식으로 1회 생성
-        if (weapons.Count == 0 && weaponPrefabNames != null)
+        // 2. 프리팹에 미리 무기가 박혀있지 않은 경우(기본 권장 사항: 프리팹 경량화),
+        //    weaponPrefabNames 목록에 있는 모든 무기들을 런타임에 1:1로 생성하여 풀에 등록
+        if (weaponPool.Count == 0 && weaponPrefabNames != null && weaponPrefabNames.Count > 0)
         {
             for (int i = 0; i < weaponPrefabNames.Count; i++)
             {
-                string weaponName = weaponPrefabNames[i];
-                if (string.IsNullOrEmpty(weaponName)) continue;
+                string prefabName = weaponPrefabNames[i];
+                if (string.IsNullOrEmpty(prefabName)) continue;
 
-                GameObject resource = Resources.Load<GameObject>(weaponName);
-                if (resource == null)
+                GameObject res = Resources.Load<GameObject>(prefabName);
+                if (res != null)
                 {
-                    Debug.LogWarning($"[{gameObject.name}] Resources에서 무기 '{weaponName}'을(를) 찾을 수 없습니다.");
-                    continue;
+                    GameObject weaponObj = Instantiate(res, weaponParent);
+                    weaponObj.name = $"{prefabName}_{gameObject.name}_slot{i}";
+                    weaponObj.transform.localPosition = Vector3.zero;
+                    weaponObj.transform.localRotation = Quaternion.identity;
+
+                    GunScript gs = weaponObj.GetComponent<GunScript>();
+                    if (gs != null)
+                    {
+                        weaponPool.Add(gs);
+                    }
+                    weaponObj.SetActive(false);
+                    Debug.LogWarning($"[{gameObject.name}] Resources에서 무기 '{weaponObj.name}' 로드 성공.");
                 }
-
-                GameObject weaponObj = Instantiate(resource, weaponParent);
-                weaponObj.name = $"{weaponName}_{gameObject.name}";
-                weaponObj.transform.localPosition = Vector3.zero;
-                weaponObj.transform.localRotation = Quaternion.identity;
-
-                GunScript gs = weaponObj.GetComponent<GunScript>();
-                if (gs != null)
+                else
                 {
-                    weapons.Add(gs);
+                    Debug.LogWarning($"[{gameObject.name}] Resources에서 무기 '{prefabName}'을(를) 로드할 수 없습니다.");
                 }
-                weaponObj.SetActive(false);
+            }
+        }
+        // 인스펙터/프리팹에 이미 일부 자식 무기가 등록되어 있는 경우 부족한 슬롯만큼 추가 생성
+        else if (weaponPrefabNames != null && weaponPool.Count < weaponPrefabNames.Count)
+        {
+            int startIndex = weaponPool.Count;
+            for (int i = startIndex; i < weaponPrefabNames.Count; i++)
+            {
+                string prefabName = weaponPrefabNames[i];
+                if (string.IsNullOrEmpty(prefabName)) continue;
+
+                GameObject res = Resources.Load<GameObject>(prefabName);
+                if (res != null)
+                {
+                    GameObject weaponObj = Instantiate(res, weaponParent);
+                    weaponObj.name = $"{prefabName}_{gameObject.name}_slot{i}";
+                    weaponObj.transform.localPosition = Vector3.zero;
+                    weaponObj.transform.localRotation = Quaternion.identity;
+
+                    GunScript gs = weaponObj.GetComponent<GunScript>();
+                    if (gs != null)
+                    {
+                        weaponPool.Add(gs);
+                    }
+                    weaponObj.SetActive(false);
+                }
             }
         }
 
-        // 모든 보유 무기에 Player 의존성 주입 및 부모 계층 정렬
+        // 3. 풀의 모든 무기에 Player 의존성 주입 및 부모 계층 연결
         Transform pivotToUse = (trCurrentCamera != null) ? trCurrentCamera : ViewPivot;
         GameObject spawnToUse = bulletSpawnPlace;
         if (isPlayer && !spawnToUse && GameManager.instance && GameManager.instance.BulletSpawnPlace)
             spawnToUse = GameManager.instance.BulletSpawnPlace;
 
-        for (int i = 0; i < weapons.Count; i++)
+        for (int i = 0; i < weaponPool.Count; i++)
         {
-            GunScript gs = weapons[i];
+            GunScript gs = weaponPool[i];
             if (gs == null) continue;
 
             if (gs.transform.parent != weaponParent)
@@ -194,21 +217,23 @@ public class Player : MonoBehaviour
             gs.Initialize(this.transform, m_cMouseLockScript, pivotToUse, currentSecondCamera, spawnToUse, marker);
         }
 
-        // 기본 무기(0번 슬롯) 즉시 장착
-        if (weapons.Count > 0)
+        Debug.Log($"[{gameObject.name}] 런타임 무기 풀 초기화 완료: 총 {weaponPool.Count}개 무기 준비됨");
+
+        // 4. 0번 슬롯(기본 무기)만 활성화하고 나머지는 비활성화
+        if (weaponPool.Count > 0)
         {
-            int startSlot = Mathf.Clamp(currentWeaponIndex, 0, weapons.Count - 1);
+            int startSlot = Mathf.Clamp(currentWeaponIndex, 0, weaponPool.Count - 1);
             EquipWeapon(startSlot, true);
         }
     }
 
     /// <summary>
-    /// 지정된 인덱스의 무기를 즉시 활성화하고 나머지 무기를 비활성화합니다.
+    /// 무기 풀(Pool)에서 지정된 인덱스의 무기만 활성화(SetActive(true))하고 나머지는 비활성화(SetActive(false))합니다.
     /// </summary>
     private void EquipWeapon(int index, bool force = false)
     {
-        if (weapons == null || weapons.Count == 0) return;
-        if (index < 0 || index >= weapons.Count) return;
+        if (weaponPool == null || weaponPool.Count == 0) return;
+        if (index < 0 || index >= weaponPool.Count) return;
         if (!force && currentWeaponIndex == index && gun != null && gun.gameObject.activeSelf) return;
 
         if (!force && gunInventory != null && gunInventory.weaponChanging != null)
@@ -216,16 +241,17 @@ public class Player : MonoBehaviour
             gunInventory.weaponChanging.Play();
         }
 
-        for (int i = 0; i < weapons.Count; i++)
+        // 풀(Pool)에 있는 무기들을 순회하며 선택된 인덱스만 SetActive(true)
+        for (int i = 0; i < weaponPool.Count; i++)
         {
-            if (weapons[i] != null)
+            if (weaponPool[i] != null)
             {
-                weapons[i].gameObject.SetActive(i == index);
+                weaponPool[i].gameObject.SetActive(i == index);
             }
         }
 
         currentWeaponIndex = index;
-        gun = weapons[currentWeaponIndex];
+        gun = weaponPool[currentWeaponIndex];
 
         if (gun != null)
         {
@@ -330,8 +356,9 @@ public class Player : MonoBehaviour
 
     public void NextWeapon()
     {
-        if (weapons == null || weapons.Count == 0) return;
-        int next = (currentWeaponIndex + 1) % weapons.Count;
+        if (weaponPool == null || weaponPool.Count == 0) return;
+        int next = (currentWeaponIndex + 1) % weaponPool.Count;
+        Debug.Log($"NextWepon:{next}");
         EquipWeapon(next, false);
     }
 }

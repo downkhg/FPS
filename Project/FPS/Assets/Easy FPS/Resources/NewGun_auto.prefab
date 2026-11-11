@@ -2304,7 +2304,7 @@ GameObject:
   - component: {fileID: 456086}
   - component: {fileID: 11405670}
   m_Layer: 8
-  m_Name: D
+  m_Name: NewGun_auto
   m_TagString: Weapon
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

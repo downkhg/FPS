@@ -175,7 +175,7 @@ public class GunScript : MonoBehaviour {
 	{
 		if (!reloading && !meeleAttack)
 		{
-			StartCoroutine("Reload_Animation");
+			StartCoroutine(Reload_Animation());
 		}
 	}
 
@@ -183,7 +183,7 @@ public class GunScript : MonoBehaviour {
 	{
 		if (!meeleAttack)
 		{
-			StartCoroutine("AnimationMeeleAttack");
+			StartCoroutine(AnimationMeeleAttack());
 		}
 	}
 
