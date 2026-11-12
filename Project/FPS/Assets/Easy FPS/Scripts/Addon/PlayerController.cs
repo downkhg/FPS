@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [RequireComponent(typeof(Player))]
 public class PlayerController : MonoBehaviour
@@ -13,25 +14,31 @@ public class PlayerController : MonoBehaviour
     }
 
     [Header("FSM State")]
-    [SerializeField] private PlayerState currentState = PlayerState.Idle;
-    public PlayerState CurrentState => currentState;
+    [SerializeField, FormerlySerializedAs("currentState")]
+    private PlayerState m_eCurrentState = PlayerState.Idle;
 
-    private Player player;
+    public PlayerState CurrentState => m_eCurrentState;
+
+    private Player m_cPlayer;
+
+    [Header("Gizmo Debug Settings")]
+    [Tooltip("Scene 뷰에 플레이어 디버그 기즈모 표시 여부")]
+    [FormerlySerializedAs("showGizmos")]
+    public bool m_bShowGizmos = true;
 
     void Awake()
     {
-        player = GetComponent<Player>();
+        m_cPlayer = GetComponent<Player>();
     }
 
     void Start()
     {
-        Debug.Log($"{gameObject.name}.Start()");
         SetState(PlayerState.Idle);
     }
 
     void Update()
     {
-        if (!player) return;
+        if (!m_cPlayer) return;
 
         // 매 프레임 현재 상태에 따른 행동 및 전이 검사 실행
         UpdateState();
@@ -42,46 +49,44 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// 상태 설정 및 전환 함수 (State Enter / Exit 처리)
     /// </summary>
-    public void SetState(PlayerState newState)
+    public void SetState(PlayerState _eNewState)
     {
-        if (currentState == newState) return;
+        if (m_eCurrentState == _eNewState) return;
 
         // 이전 상태 종료(Exit) 처리
-        switch (currentState)
+        switch (m_eCurrentState)
         {
             case PlayerState.Move:
-                player.Move(Vector2.zero);
+                m_cPlayer.Move(Vector2.zero);
                 break;
             case PlayerState.Attack:
-                break;
             case PlayerState.Reload:
-                break;
             case PlayerState.Melee:
                 break;
         }
 
-        currentState = newState;
+        m_eCurrentState = _eNewState;
 
         // 새 상태 진입(Enter) 처리
-        switch (currentState)
+        switch (m_eCurrentState)
         {
             case PlayerState.Idle:
-                player.Move(Vector2.zero);
+                m_cPlayer.Move(Vector2.zero);
                 break;
 
             case PlayerState.Move:
                 break;
 
             case PlayerState.Attack:
-                player.Shoot();
+                m_cPlayer.Shoot();
                 break;
 
             case PlayerState.Reload:
-                player.Reload();
+                m_cPlayer.Reload();
                 break;
 
             case PlayerState.Melee:
-                player.Melee();
+                m_cPlayer.Melee();
                 break;
         }
     }
@@ -94,7 +99,7 @@ public class PlayerController : MonoBehaviour
         // 공통 입력 (조준, 점프, 앉기, 무기 교체는 상시 수신)
         HandleCommonInputs();
 
-        switch (currentState)
+        switch (m_eCurrentState)
         {
             case PlayerState.Idle:
                 UpdateIdle();
@@ -123,9 +128,9 @@ public class PlayerController : MonoBehaviour
     private void UpdateIdle()
     {
         // 1. 이동 입력 감지 시 Move 상태로 전환
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-        if (Mathf.Abs(h) > 0.01f || Mathf.Abs(v) > 0.01f)
+        float fH = Input.GetAxisRaw("Horizontal");
+        float fV = Input.GetAxisRaw("Vertical");
+        if (Mathf.Abs(fH) > 0.01f || Mathf.Abs(fV) > 0.01f)
         {
             SetState(PlayerState.Move);
             return;
@@ -155,18 +160,18 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateMove()
     {
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
+        float fH = Input.GetAxisRaw("Horizontal");
+        float fV = Input.GetAxisRaw("Vertical");
 
         // 입력이 없으면 Idle로 전환
-        if (Mathf.Abs(h) < 0.01f && Mathf.Abs(v) < 0.01f)
+        if (Mathf.Abs(fH) < 0.01f && Mathf.Abs(fV) < 0.01f)
         {
             SetState(PlayerState.Idle);
             return;
         }
 
         // 이동 실행
-        player.Move(new Vector2(h, v));
+        m_cPlayer.Move(new Vector2(fH, fV));
 
         // 이동 중 사격
         if (IsFireInput())
@@ -195,19 +200,19 @@ public class PlayerController : MonoBehaviour
         // 사격 실행
         if (IsFireInput())
         {
-            player.Shoot();
+            m_cPlayer.Shoot();
 
             // 사격 중 이동 허용
-            float h = Input.GetAxisRaw("Horizontal");
-            float v = Input.GetAxisRaw("Vertical");
-            player.Move(new Vector2(h, v));
+            float fH = Input.GetAxisRaw("Horizontal");
+            float fV = Input.GetAxisRaw("Vertical");
+            m_cPlayer.Move(new Vector2(fH, fV));
         }
         else
         {
             // 사격 중지 시 이동 또는 대기로 전환
-            float h = Input.GetAxisRaw("Horizontal");
-            float v = Input.GetAxisRaw("Vertical");
-            if (Mathf.Abs(h) > 0.01f || Mathf.Abs(v) > 0.01f)
+            float fH = Input.GetAxisRaw("Horizontal");
+            float fV = Input.GetAxisRaw("Vertical");
+            if (Mathf.Abs(fH) > 0.01f || Mathf.Abs(fV) > 0.01f)
                 SetState(PlayerState.Move);
             else
                 SetState(PlayerState.Idle);
@@ -217,22 +222,22 @@ public class PlayerController : MonoBehaviour
     private void UpdateReload()
     {
         // 재장전 중 상태 검사: 재장전이 끝나면 대기로 전환
-        if (player.Gun != null && !player.Gun.reloading)
+        if (m_cPlayer.Gun != null && !m_cPlayer.Gun.IsReloading)
         {
             SetState(PlayerState.Idle);
             return;
         }
 
         // 재장전 중에도 이동 입력은 처리
-        float h = Input.GetAxisRaw("Horizontal");
-        float v = Input.GetAxisRaw("Vertical");
-        player.Move(new Vector2(h, v));
+        float fH = Input.GetAxisRaw("Horizontal");
+        float fV = Input.GetAxisRaw("Vertical");
+        m_cPlayer.Move(new Vector2(fH, fV));
     }
 
     private void UpdateMelee()
     {
         // 근접 공격 애니메이션이 끝나면 대기로 복귀
-        if (player.Gun != null && !player.Gun.meeleAttack)
+        if (m_cPlayer.Gun != null && !m_cPlayer.Gun.IsMeleeAttack)
         {
             SetState(PlayerState.Idle);
         }
@@ -245,48 +250,44 @@ public class PlayerController : MonoBehaviour
         // 점프 & 앉기
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            player.Jump();
+            m_cPlayer.Jump();
         }
-        player.Crouch(Input.GetKey(KeyCode.C));
+        m_cPlayer.Crouch(Input.GetKey(KeyCode.C));
 
         // 무기 교체 (E키 또는 1, 2번 숫자키)
         if (Input.GetKeyDown(KeyCode.E))
         {
-            player.NextWeapon();
+            m_cPlayer.NextWeapon();
         }
         else if (Input.GetKeyDown(KeyCode.Alpha1))
         {
-            player.SwitchWeapon(0);
+            m_cPlayer.SwitchWeapon(0);
         }
         else if (Input.GetKeyDown(KeyCode.Alpha2))
         {
-            player.SwitchWeapon(1);
+            m_cPlayer.SwitchWeapon(1);
         }
 
         // 우클릭 조준
-        player.Aim(Input.GetButton("Fire2"));
+        m_cPlayer.Aim(Input.GetButton("Fire2"));
     }
 
     private bool IsFireInput()
     {
-        if (player.Gun == null) return false;
-        if (player.Gun.currentStyle == GunStyles.automatic)
+        if (m_cPlayer.Gun == null) return false;
+        if (m_cPlayer.Gun.CurrentStyle == GunStyles.automatic)
             return Input.GetButton("Fire1");
         else
             return Input.GetButtonDown("Fire1");
     }
 
-    [Header("Gizmo Debug Settings")]
-    [Tooltip("Scene 뷰에 플레이어 디버그 기즈모 표시 여부")]
-    public bool showGizmos = true;
-
     void OnDrawGizmos()
     {
-        if (!showGizmos) return;
+        if (!m_bShowGizmos) return;
 
         // 1. 현재 상태에 따른 머리 위 상태 인디케이터 구체
-        Vector3 indicatorPos = transform.position + Vector3.up * 2.2f;
-        switch (currentState)
+        Vector3 vIndicatorPos = transform.position + Vector3.up * 2.2f;
+        switch (m_eCurrentState)
         {
             case PlayerState.Idle: Gizmos.color = Color.gray; break;
             case PlayerState.Move: Gizmos.color = Color.green; break;
@@ -294,18 +295,18 @@ public class PlayerController : MonoBehaviour
             case PlayerState.Reload: Gizmos.color = Color.yellow; break;
             case PlayerState.Melee: Gizmos.color = new Color(1f, 0.5f, 0f); break;
         }
-        Gizmos.DrawSphere(indicatorPos, 0.15f);
+        Gizmos.DrawSphere(vIndicatorPos, 0.15f);
 
         // 2. 캐릭터 몸체 Forward 방향 레이 (초록)
         Gizmos.color = Color.green;
         Gizmos.DrawRay(transform.position + Vector3.up * 1f, transform.forward * 2f);
 
         // 3. 발사 원점(BulletSpawnPlace) 위치 표시 (청록)
-        if (player != null && player.BulletSpawnPlace != null)
+        if (m_cPlayer != null && m_cPlayer.BulletSpawnPlace != null)
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawWireSphere(player.BulletSpawnPlace.transform.position, 0.08f);
-            Gizmos.DrawRay(player.BulletSpawnPlace.transform.position, player.BulletSpawnPlace.transform.forward * 1.5f);
+            Gizmos.DrawWireSphere(m_cPlayer.BulletSpawnPlace.transform.position, 0.08f);
+            Gizmos.DrawRay(m_cPlayer.BulletSpawnPlace.transform.position, m_cPlayer.BulletSpawnPlace.transform.forward * 1.5f);
         }
     }
 }

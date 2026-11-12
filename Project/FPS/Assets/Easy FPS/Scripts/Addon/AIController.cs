@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 [RequireComponent(typeof(Player))]
 public class AIController : MonoBehaviour
@@ -13,66 +14,91 @@ public class AIController : MonoBehaviour
     }
 
     [Header("FSM State")]
-    [SerializeField] private AIState currentState = AIState.Idle;
-    public AIState CurrentState => currentState;
+    [SerializeField, FormerlySerializedAs("currentState")]
+    private AIState m_eCurrentState = AIState.Idle;
 
-    private Player npc;
+    public AIState CurrentState => m_eCurrentState;
+
+    private Player m_cNpc;
 
     [Header("AI Detection Settings")]
     [Tooltip("적 탐지 반경")]
-    public float detectionRadius = 40f;
+    [FormerlySerializedAs("detectionRadius")]
+    public float m_fDetectionRadius = 40f;
+
     [Tooltip("우선 탐색할 타깃 태그 (기본: Player)")]
-    public string primaryTargetTag = "Player";
+    [FormerlySerializedAs("primaryTargetTag")]
+    public string m_strPrimaryTargetTag = "Player";
+
     [Tooltip("보조 탐색할 타깃 태그 (예: Dummie)")]
-    public string secondaryTargetTag = "Dummie";
+    [FormerlySerializedAs("secondaryTargetTag")]
+    public string m_strSecondaryTargetTag = "Dummie";
 
     [Header("Combat Ranges")]
     [Tooltip("저격 사거리 (이 거리 이상이면 저격총으로 교환 후 사격)")]
-    public float sniperRangeMin = 15f;
+    [FormerlySerializedAs("sniperRangeMin")]
+    public float m_fSniperRangeMin = 15f;
+
     [Tooltip("일반 사거리 최대값 (이 거리 이내이면 일반총 사격, 벗어나면 이동)")]
-    public float normalRangeMax = 15f;
+    [FormerlySerializedAs("normalRangeMax")]
+    public float m_fNormalRangeMax = 15f;
+
     [Tooltip("근접 공격 사거리")]
-    public float meleeAttackRange = 2.5f;
+    [FormerlySerializedAs("meleeAttackRange")]
+    public float m_fMeleeAttackRange = 2.5f;
 
     [Header("Attack Fire Rates (Seconds)")]
     [Tooltip("저격총 사격 간격 (초)")]
-    public float sniperFireInterval = 1.5f;
+    [FormerlySerializedAs("sniperFireInterval")]
+    public float m_fSniperFireInterval = 1.5f;
+
     [Tooltip("일반총 사격 간격 (초)")]
-    public float normalFireInterval = 0.25f;
+    [FormerlySerializedAs("normalFireInterval")]
+    public float m_fNormalFireInterval = 0.25f;
+
     [Tooltip("근접 공격 간격 (초)")]
-    public float meleeInterval = 0.8f;
+    [FormerlySerializedAs("meleeInterval")]
+    public float m_fMeleeInterval = 0.8f;
 
     [Header("Target Tracking")]
-    public Transform currentTarget;
+    [FormerlySerializedAs("currentTarget")]
+    public Transform m_trCurrentTarget;
 
-    private float targetSearchTimer = 0f;
-    private float attackTimer = 0f;
+    private float m_fTargetSearchTimer = 0f;
+    private float m_fAttackTimer = 0f;
+
+    [Header("Gizmo Debug Settings")]
+    [Tooltip("Scene 뷰에 AI 기즈모(사거리 및 조준선) 표시 여부")]
+    [FormerlySerializedAs("showGizmos")]
+    public bool m_bShowGizmos = true;
+
+    [FormerlySerializedAs("showOnlyWhenSelected")]
+    public bool m_bShowOnlyWhenSelected = false;
 
     void Awake()
     {
-        npc = GetComponent<Player>();
+        m_cNpc = GetComponent<Player>();
     }
 
     void Start()
     {
-        Debug.Log($"{gameObject.name}.Start()");
         SetState(AIState.Idle);
     }
 
     void Update()
     {
-        if (!npc) return;
+        if (!m_cNpc) return;
 
         // 공격 쿨다운 타이머 감소
-        if (attackTimer > 0f)
-            attackTimer -= Time.deltaTime;
+        if (m_fAttackTimer > 0f)
+            m_fAttackTimer -= Time.deltaTime;
 
         // 주기적인 적 타깃 탐색 (0.5초마다)
-        targetSearchTimer -= Time.deltaTime;
-        if (targetSearchTimer <= 0f || currentTarget == null)
+        m_fTargetSearchTimer -= Time.deltaTime;
+        if (m_fTargetSearchTimer <= 0f || m_trCurrentTarget == null)
         {
-            targetSearchTimer = 0.5f;
-            currentTarget = FindTarget();
+            m_fTargetSearchTimer = 0.5f;
+            m_trCurrentTarget = FindTarget();
         }
 
         // 상태 머신 업데이트
@@ -81,54 +107,54 @@ public class AIController : MonoBehaviour
 
     // ==================== 유한상태머신 (FSM) 함수 ====================
 
-    public void SetState(AIState newState)
+    public void SetState(AIState _eNewState)
     {
-        if (currentState == newState) return;
+        if (m_eCurrentState == _eNewState) return;
 
         // 이전 상태 Exit
-        switch (currentState)
+        switch (m_eCurrentState)
         {
             case AIState.Chase:
-                npc.MoveWorld(Vector3.zero);
+                m_cNpc.MoveWorld(Vector3.zero);
                 break;
 
             case AIState.Snipe:
-                npc.Aim(false);
+                m_cNpc.Aim(false);
                 break;
         }
 
-        currentState = newState;
-        attackTimer = 0f; // 상태 전이 시 즉시 1발 발사 가능하도록 쿨다운 리셋
+        m_eCurrentState = _eNewState;
+        m_fAttackTimer = 0f; // 상태 전이 시 즉시 1발 발사 가능하도록 쿨다운 리셋
 
         // 새 상태 Enter
-        switch (currentState)
+        switch (m_eCurrentState)
         {
             case AIState.Idle:
-                npc.MoveWorld(Vector3.zero);
-                npc.Aim(false);
+                m_cNpc.MoveWorld(Vector3.zero);
+                m_cNpc.Aim(false);
                 break;
 
             case AIState.Chase:
-                npc.Aim(false);
+                m_cNpc.Aim(false);
                 break;
 
             case AIState.Snipe:
-                npc.MoveWorld(Vector3.zero);
-                npc.SwitchWeapon(1); // 저격총(NewGun_semi) 교체
-                npc.Aim(true);        // 조준 활성화
+                m_cNpc.MoveWorld(Vector3.zero);
+                m_cNpc.SwitchWeapon(0); // 단발/저격총(NewGun_semi) 장착
+                m_cNpc.Aim(true);       // 조준 활성화
                 break;
 
             case AIState.NormalAttack:
-                npc.MoveWorld(Vector3.zero);
-                npc.SwitchWeapon(0); // 일반총(NewGun_auto) 교체
-                npc.Aim(false);
+                m_cNpc.MoveWorld(Vector3.zero);
+                m_cNpc.SwitchWeapon(1); // 연사/일반총(NewGun_auto) 장착
+                m_cNpc.Aim(false);
                 break;
 
             case AIState.Melee:
-                npc.MoveWorld(Vector3.zero);
-                npc.Aim(false);
-                npc.Melee();
-                attackTimer = meleeInterval;
+                m_cNpc.MoveWorld(Vector3.zero);
+                m_cNpc.Aim(false);
+                m_cNpc.Melee();
+                m_fAttackTimer = m_fMeleeInterval;
                 break;
         }
     }
@@ -136,19 +162,19 @@ public class AIController : MonoBehaviour
     public void UpdateState()
     {
         // 타깃이 없으면 Idle
-        if (currentTarget == null)
+        if (m_trCurrentTarget == null)
         {
-            if (currentState != AIState.Idle)
+            if (m_eCurrentState != AIState.Idle)
                 SetState(AIState.Idle);
             UpdateIdle();
             return;
         }
 
         // 타깃의 가슴/상체 위치(y + 1.0f)를 지속적으로 조준
-        Vector3 aimPoint = currentTarget.position + Vector3.up * 1.0f;
-        npc.LookAtTarget(aimPoint);
+        Vector3 vAimPoint = m_trCurrentTarget.position + Vector3.up * 1.0f;
+        m_cNpc.LookAtTarget(vAimPoint);
 
-        switch (currentState)
+        switch (m_eCurrentState)
         {
             case AIState.Idle:
                 UpdateIdle();
@@ -176,7 +202,7 @@ public class AIController : MonoBehaviour
 
     private void UpdateIdle()
     {
-        if (currentTarget != null)
+        if (m_trCurrentTarget != null)
         {
             DecideCombatState();
         }
@@ -184,108 +210,108 @@ public class AIController : MonoBehaviour
 
     private void UpdateChase()
     {
-        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        float fDistance = Vector3.Distance(transform.position, m_trCurrentTarget.position);
 
-        if (distance <= meleeAttackRange)
+        if (fDistance <= m_fMeleeAttackRange)
         {
             SetState(AIState.Melee);
             return;
         }
-        else if (distance >= sniperRangeMin)
+        else if (fDistance >= m_fSniperRangeMin)
         {
             SetState(AIState.Snipe);
             return;
         }
-        else if (distance <= normalRangeMax)
+        else if (fDistance <= m_fNormalRangeMax)
         {
             SetState(AIState.NormalAttack);
             return;
         }
 
         // [범위에 들어오지 않았으면 > 이동]
-        Vector3 toTargetDir = (currentTarget.position - transform.position).normalized;
-        npc.MoveWorld(toTargetDir);
+        Vector3 vToTargetDir = (m_trCurrentTarget.position - transform.position).normalized;
+        m_cNpc.MoveWorld(vToTargetDir);
     }
 
     private void UpdateSnipe()
     {
-        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        float fDistance = Vector3.Distance(transform.position, m_trCurrentTarget.position);
 
-        if (distance < sniperRangeMin)
+        if (fDistance < m_fSniperRangeMin)
         {
             DecideCombatState();
             return;
         }
 
         // [적이 저격거리에 있으면 > 저격총으로 쏜다]
-        npc.Aim(true);
+        m_cNpc.Aim(true);
 
-        if (attackTimer <= 0f)
+        if (m_fAttackTimer <= 0f)
         {
-            attackTimer = sniperFireInterval;
-            npc.Shoot();
+            m_fAttackTimer = m_fSniperFireInterval;
+            m_cNpc.Shoot();
         }
     }
 
     private void UpdateNormalAttack()
     {
-        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        float fDistance = Vector3.Distance(transform.position, m_trCurrentTarget.position);
 
-        if (distance <= meleeAttackRange)
+        if (fDistance <= m_fMeleeAttackRange)
         {
             SetState(AIState.Melee);
             return;
         }
-        else if (distance > normalRangeMax)
+        else if (fDistance > m_fNormalRangeMax)
         {
             SetState(AIState.Chase);
             return;
         }
 
         // [범위에 들어왔다면 > 총을 쏜다]
-        if (attackTimer <= 0f)
+        if (m_fAttackTimer <= 0f)
         {
-            attackTimer = normalFireInterval;
-            npc.Shoot();
+            m_fAttackTimer = m_fNormalFireInterval;
+            m_cNpc.Shoot();
         }
     }
 
     private void UpdateMelee()
     {
-        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        float fDistance = Vector3.Distance(transform.position, m_trCurrentTarget.position);
 
-        if (distance > meleeAttackRange)
+        if (fDistance > m_fMeleeAttackRange)
         {
             DecideCombatState();
             return;
         }
 
-        if (attackTimer <= 0f)
+        if (m_fAttackTimer <= 0f)
         {
-            attackTimer = meleeInterval;
-            npc.Melee();
+            m_fAttackTimer = m_fMeleeInterval;
+            m_cNpc.Melee();
         }
     }
 
     private void DecideCombatState()
     {
-        if (currentTarget == null)
+        if (m_trCurrentTarget == null)
         {
             SetState(AIState.Idle);
             return;
         }
 
-        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        float fDistance = Vector3.Distance(transform.position, m_trCurrentTarget.position);
 
-        if (distance <= meleeAttackRange)
+        if (fDistance <= m_fMeleeAttackRange)
         {
             SetState(AIState.Melee);
         }
-        else if (distance >= sniperRangeMin)
+        else if (fDistance >= m_fSniperRangeMin)
         {
             SetState(AIState.Snipe);
         }
-        else if (distance <= normalRangeMax)
+        else if (fDistance <= m_fNormalRangeMax)
         {
             SetState(AIState.NormalAttack);
         }
@@ -295,84 +321,82 @@ public class AIController : MonoBehaviour
         }
     }
 
-    Transform FindTarget()
+    private Transform FindTarget()
     {
-        GameObject playerObj = GameObject.FindGameObjectWithTag(primaryTargetTag);
-        if (playerObj && playerObj != this.gameObject)
+        // GameManager의 CurrentPlayer를 우선 참조하여 FindGameObjectWithTag 비용 절감
+        if (GameManager.s_cInstance != null && GameManager.s_cInstance.CurrentPlayer != null)
         {
-            float dist = Vector3.Distance(transform.position, playerObj.transform.position);
-            if (dist <= detectionRadius)
-                return playerObj.transform;
-        }
-
-        GameObject dummieObj = GameObject.FindGameObjectWithTag(secondaryTargetTag);
-        if (dummieObj && dummieObj != this.gameObject)
-        {
-            float dist = Vector3.Distance(transform.position, dummieObj.transform.position);
-            if (dist <= detectionRadius)
-                return dummieObj.transform;
-        }
-
-        Collider[] hits = Physics.OverlapSphere(transform.position, detectionRadius);
-        foreach (var hit in hits)
-        {
-            if (hit.gameObject == this.gameObject) continue;
-            if (hit.CompareTag(primaryTargetTag) || hit.CompareTag(secondaryTargetTag))
+            Player cTargetPlayer = GameManager.s_cInstance.CurrentPlayer;
+            if (cTargetPlayer.gameObject != this.gameObject)
             {
-                return hit.transform;
+                float fDist = Vector3.Distance(transform.position, cTargetPlayer.transform.position);
+                if (fDist <= m_fDetectionRadius)
+                    return cTargetPlayer.transform;
             }
         }
 
-        return null;
-    }
+        Collider[] arrHits = Physics.OverlapSphere(transform.position, m_fDetectionRadius);
+        Transform trSecondaryMatch = null;
 
-    [Header("Gizmo Debug Settings")]
-    [Tooltip("Scene 뷰에 AI 기즈모(사거리 및 조준선) 표시 여부")]
-    public bool showGizmos = true;
-    public bool showOnlyWhenSelected = false;
+        for (int i = 0; i < arrHits.Length; i++)
+        {
+            Collider cHit = arrHits[i];
+            if (cHit.gameObject == this.gameObject) continue;
+
+            if (cHit.CompareTag(m_strPrimaryTargetTag))
+            {
+                return cHit.transform;
+            }
+            if (trSecondaryMatch == null && cHit.CompareTag(m_strSecondaryTargetTag))
+            {
+                trSecondaryMatch = cHit.transform;
+            }
+        }
+
+        return trSecondaryMatch;
+    }
 
     void OnDrawGizmos()
     {
-        if (showOnlyWhenSelected) return;
+        if (m_bShowOnlyWhenSelected) return;
         DrawAIGizmos();
     }
 
     void OnDrawGizmosSelected()
     {
-        if (!showOnlyWhenSelected) return;
+        if (!m_bShowOnlyWhenSelected) return;
         DrawAIGizmos();
     }
 
-    void DrawAIGizmos()
+    private void DrawAIGizmos()
     {
-        if (!showGizmos) return;
+        if (!m_bShowGizmos) return;
 
-        Vector3 center = transform.position;
+        Vector3 vCenter = transform.position;
 
         // 1. 탐지 반경 (노랑)
         Gizmos.color = new Color(1f, 0.92f, 0.016f, 0.4f);
-        Gizmos.DrawWireSphere(center, detectionRadius);
+        Gizmos.DrawWireSphere(vCenter, m_fDetectionRadius);
 
         // 2. 저격 사거리 (파랑)
         Gizmos.color = new Color(0f, 0.5f, 1f, 0.6f);
-        Gizmos.DrawWireSphere(center, sniperRangeMin);
+        Gizmos.DrawWireSphere(vCenter, m_fSniperRangeMin);
 
         // 3. 일반 사거리 최대 (시안)
         Gizmos.color = new Color(0f, 1f, 1f, 0.5f);
-        Gizmos.DrawWireSphere(center, normalRangeMax);
+        Gizmos.DrawWireSphere(vCenter, m_fNormalRangeMax);
 
         // 4. 근접 공격 사거리 (빨강)
         Gizmos.color = new Color(1f, 0f, 0f, 0.8f);
-        Gizmos.DrawWireSphere(center, meleeAttackRange);
+        Gizmos.DrawWireSphere(vCenter, m_fMeleeAttackRange);
 
         // 5. 타깃 조준선 및 시선 방향
-        if (currentTarget != null)
+        if (m_trCurrentTarget != null)
         {
-            Vector3 aimPoint = currentTarget.position + Vector3.up * 1.0f;
-            Vector3 myEyePos = transform.position + Vector3.up * 1.4f;
+            Vector3 vAimPoint = m_trCurrentTarget.position + Vector3.up * 1.0f;
+            Vector3 vMyEyePos = transform.position + Vector3.up * 1.4f;
 
-            // 상태에 따른 선 색상
-            switch (currentState)
+            switch (m_eCurrentState)
             {
                 case AIState.Snipe: Gizmos.color = Color.cyan; break;
                 case AIState.NormalAttack: Gizmos.color = Color.red; break;
@@ -381,8 +405,8 @@ public class AIController : MonoBehaviour
                 default: Gizmos.color = Color.green; break;
             }
 
-            Gizmos.DrawLine(myEyePos, aimPoint);
-            Gizmos.DrawWireSphere(aimPoint, 0.25f);
+            Gizmos.DrawLine(vMyEyePos, vAimPoint);
+            Gizmos.DrawWireSphere(vAimPoint, 0.25f);
         }
         else
         {

@@ -1,666 +1,731 @@
-using UnityEngine;
 using System.Collections;
-using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.Serialization;
 
-public enum GunStyles{
-	nonautomatic,automatic
+public enum GunStyles
+{
+    nonautomatic,
+    automatic
 }
-public class GunScript : MonoBehaviour {
-	[Tooltip("Selects type of waepon to shoot rapidly or one bullet per click.")]
-	public GunStyles currentStyle;
-	[HideInInspector]
-	public MouseLookScript m_cMouseLockScript;
 
-	[Header("Player movement properties")]
-	[Tooltip("Speed is determined via gun because not every gun has same properties or weights so you MUST set up your speeds here")]
-	public int walkingSpeed = 3;
-	[Tooltip("Speed is determined via gun because not every gun has same properties or weights so you MUST set up your speeds here")]
-	public int runningSpeed = 5;
+public class GunScript : MonoBehaviour
+{
+    [Tooltip("Selects type of weapon to shoot rapidly or one bullet per click.")]
+    [FormerlySerializedAs("currentStyle")]
+    public GunStyles m_eCurrentStyle;
 
+    [HideInInspector]
+    [FormerlySerializedAs("m_cMouseLockScript")]
+    public MouseLookScript m_cMouseLook;
 
-	[Header("Bullet properties")]
-	[Tooltip("Preset value to tell with how many bullets will our waepon spawn aside.")]
-	public float bulletsIHave = 20;
-	[Tooltip("Preset value to tell with how much bullets will our waepon spawn inside rifle.")]
-	public float bulletsInTheGun = 5;
-	[Tooltip("Preset value to tell how much bullets can one magazine carry.")]
-	public float amountOfBulletsPerLoad = 5;
+    [Header("Player movement properties")]
+    [Tooltip("Speed is determined via gun because not every gun has same properties or weights so you MUST set up your speeds here")]
+    [FormerlySerializedAs("walkingSpeed")]
+    public int m_nWalkingSpeed = 3;
 
-	public Transform trPlayer;
-    public Camera cameraComponent;
-    public Transform trLevelFloor;
+    [Tooltip("Speed is determined via gun because not every gun has same properties or weights so you MUST set up your speeds here")]
+    [FormerlySerializedAs("runningSpeed")]
+    public int m_nRunningSpeed = 5;
 
-	private PlayerMovementScript playerMovementScript;
-	private Player playerComponent;
+    [Header("Bullet properties")]
+    [Tooltip("Preset value to tell with how many bullets will our weapon spawn aside.")]
+    [FormerlySerializedAs("bulletsIHave")]
+    public float m_fBulletsIHave = 20f;
 
-	// 마리오네트 조준 상태
-	private bool isAimingControlled = false;
+    [Tooltip("Preset value to tell with how much bullets will our weapon spawn inside rifle.")]
+    [FormerlySerializedAs("bulletsInTheGun")]
+    public float m_fBulletsInTheGun = 5f;
 
-	void Awake(){
-		
-	}
+    [Tooltip("Preset value to tell how much bullets can one magazine carry.")]
+    [FormerlySerializedAs("amountOfBulletsPerLoad")]
+    public float m_fAmountOfBulletsPerLoad = 5f;
 
-	void OnDisable()
-	{
-		reloading = false;
-		meeleAttack = false;
-		aiming = false;
-		isAimingControlled = false;
-	}
+    [FormerlySerializedAs("trPlayer")]
+    public Transform m_trPlayer;
 
-    public void Initialize(Transform _trPlayer, MouseLookScript _mouseLockScript, Transform trCamera, Camera _cameraSecond, GameObject objBulletBulletSpawnPlace, AudioSource asHitMarker)
+    [FormerlySerializedAs("cameraComponent")]
+    public Camera m_camMain;
+
+    [FormerlySerializedAs("trLevelFloor")]
+    public Transform m_trLevelFloor;
+
+    private PlayerMovementScript m_cPlayerMovement;
+    private Player m_cPlayer;
+
+    // 마리오네트 조준 상태
+    private bool m_bIsAimingControlled = false;
+
+    [HideInInspector]
+    [FormerlySerializedAs("currentGunPosition")]
+    public Vector3 m_vCurrentGunPosition;
+
+    [Header("Gun Positioning")]
+    [Tooltip("Vector 3 position from player SETUP for NON AIMING values")]
+    [FormerlySerializedAs("restPlacePosition")]
+    public Vector3 m_vRestPlacePosition;
+
+    [Tooltip("Vector 3 position from player SETUP for AIMING values")]
+    [FormerlySerializedAs("aimPlacePosition")]
+    public Vector3 m_vAimPlacePosition;
+
+    [Tooltip("Time that takes for gun to get into aiming stance.")]
+    [FormerlySerializedAs("gunAimTime")]
+    public float m_fGunAimTime = 0.1f;
+
+    [HideInInspector]
+    [FormerlySerializedAs("reloading")]
+    public bool m_bIsReloading;
+
+    private Vector3 m_vGunPosVelocity;
+    private float m_fCameraZoomVelocity;
+    private float m_fSecondCameraZoomVelocity;
+
+    [Header("Sensitivity of the gun")]
+    [Tooltip("Sensitivity of this gun while not aiming.")]
+    [FormerlySerializedAs("mouseSensitvity_notAiming")]
+    public float m_fMouseSensitivityNotAiming = 10f;
+
+    [Tooltip("Sensitivity of this gun while aiming.")]
+    [FormerlySerializedAs("mouseSensitvity_aiming")]
+    public float m_fMouseSensitivityAiming = 5f;
+
+    [Tooltip("Sensitivity of this gun while running.")]
+    [FormerlySerializedAs("mouseSensitvity_running")]
+    public float m_fMouseSensitivityRunning = 4f;
+
+    private float m_fStartLook, m_fStartAim, m_fStartRun;
+
+    [HideInInspector]
+    [FormerlySerializedAs("meeleAttack")]
+    public bool m_bIsMeleeAttack;
+
+    [HideInInspector]
+    [FormerlySerializedAs("aiming")]
+    public bool m_bIsAiming;
+
+    private Vector3 m_vVelV;
+
+    [HideInInspector]
+    [FormerlySerializedAs("mainCamera")]
+    public Transform m_trMainCamera;
+
+    private Camera m_camSecond;
+
+    [Header("Rotation")]
+    private Vector2 m_vVelocityGunRotate;
+    private float m_fGunWeightX, m_fGunWeightY;
+
+    [Tooltip("The time weapon will lag behind the camera view best set to '0'.")]
+    [FormerlySerializedAs("rotationLagTime")]
+    public float m_fRotationLagTime = 0f;
+
+    private float m_fRotationLastY;
+    private float m_fRotationDeltaY;
+    private float m_fAngularVelocityY;
+    private float m_fRotationLastX;
+    private float m_fRotationDeltaX;
+    private float m_fAngularVelocityX;
+
+    [Tooltip("Value of forward rotation multiplier.")]
+    [FormerlySerializedAs("forwardRotationAmount")]
+    public Vector2 m_vForwardRotationAmount = Vector2.one;
+
+    private float m_fCurrentRecoilZPos;
+    private float m_fCurrentRecoilXPos;
+    private float m_fCurrentRecoilYPos;
+
+    [Header("Shooting setup - MUSTDO")]
+    [HideInInspector]
+    [FormerlySerializedAs("bulletSpawnPlace")]
+    public GameObject m_objBulletSpawnPlace;
+
+    [Tooltip("Bullet prefab that this weapon will shoot.")]
+    [FormerlySerializedAs("bullet")]
+    public GameObject m_prefabBullet;
+
+    [Tooltip("Rounds per second if weapon is set to automatic rafal.")]
+    [FormerlySerializedAs("roundsPerSecond")]
+    public float m_fRoundsPerSecond;
+
+    private float m_fWaitTillNextFire;
+
+    [HideInInspector] [FormerlySerializedAs("recoilAmount_z")] public float m_fRecoilAmountZ = 0.5f;
+    [HideInInspector] [FormerlySerializedAs("recoilAmount_x")] public float m_fRecoilAmountX = 0.5f;
+    [HideInInspector] [FormerlySerializedAs("recoilAmount_y")] public float m_fRecoilAmountY = 0.5f;
+
+    [Header("Recoil Not Aiming")]
+    [FormerlySerializedAs("recoilAmount_z_non")] public float m_fRecoilAmountZNon = 0.5f;
+    [FormerlySerializedAs("recoilAmount_x_non")] public float m_fRecoilAmountXNon = 0.5f;
+    [FormerlySerializedAs("recoilAmount_y_non")] public float m_fRecoilAmountYNon = 0.5f;
+
+    [Header("Recoil Aiming")]
+    [FormerlySerializedAs("recoilAmount_z_")] public float m_fRecoilAmountZAim = 0.5f;
+    [FormerlySerializedAs("recoilAmount_x_")] public float m_fRecoilAmountXAim = 0.5f;
+    [FormerlySerializedAs("recoilAmount_y_")] public float m_fRecoilAmountYAim = 0.5f;
+
+    [HideInInspector] [FormerlySerializedAs("velocity_z_recoil")] public float m_fVelocityZRecoil;
+    [HideInInspector] [FormerlySerializedAs("velocity_x_recoil")] public float m_fVelocityXRecoil;
+    [HideInInspector] [FormerlySerializedAs("velocity_y_recoil")] public float m_fVelocityYRecoil;
+
+    [Header("Recoil Recovery Time")]
+    [FormerlySerializedAs("recoilOverTime_z")] public float m_fRecoilOverTimeZ = 0.5f;
+    [FormerlySerializedAs("recoilOverTime_x")] public float m_fRecoilOverTimeX = 0.5f;
+    [FormerlySerializedAs("recoilOverTime_y")] public float m_fRecoilOverTimeY = 0.5f;
+
+    [Header("Gun Precision")]
+    [FormerlySerializedAs("gunPrecision_notAiming")] public float m_fGunPrecisionNotAiming = 200.0f;
+    [FormerlySerializedAs("gunPrecision_aiming")] public float m_fGunPrecisionAiming = 100.0f;
+    [FormerlySerializedAs("cameraZoomRatio_notAiming")] public float m_fCameraZoomRatioNotAiming = 60f;
+    [FormerlySerializedAs("cameraZoomRatio_aiming")] public float m_fCameraZoomRatioAiming = 40f;
+    [FormerlySerializedAs("secondCameraZoomRatio_notAiming")] public float m_fSecondCameraZoomRatioNotAiming = 60f;
+    [FormerlySerializedAs("secondCameraZoomRatio_aiming")] public float m_fSecondCameraZoomRatioAiming = 40f;
+
+    [HideInInspector]
+    [FormerlySerializedAs("gunPrecision")]
+    public float m_fGunPrecision;
+
+    [Tooltip("Audios for shootingSound, and reloading.")]
+    [FormerlySerializedAs("shoot_sound_source")]
+    public AudioSource m_asShootSound;
+
+    [FormerlySerializedAs("reloadSound_source")]
+    public AudioSource m_asReloadSound;
+
+    [Tooltip("Sound that plays after successful attack bullet hit.")]
+    private AudioSource m_asHitMarker;
+
+    [Tooltip("Array of muzzle flashes, randomly one will appear after each bullet.")]
+    [FormerlySerializedAs("muzzelFlash")]
+    public GameObject[] m_arrPrefabMuzzleFlash;
+
+    [Tooltip("Place on the gun where muzzle flash will appear.")]
+    [FormerlySerializedAs("muzzelSpawn")]
+    public GameObject m_objMuzzleSpawn;
+
+    private GameObject m_objHoldFlash;
+
+    [Header("Reload time after anim")]
+    [FormerlySerializedAs("reloadChangeBulletsTime")]
+    public float m_fReloadChangeBulletsTime;
+
+    [Tooltip("HUD bullets to display bullet count on screen.")]
+    [FormerlySerializedAs("HUD_bullets")]
+    public TextMesh m_tmHudBullets;
+
+    [Header("Crosshair properties")]
+    [FormerlySerializedAs("horizontal_crosshair")] public Texture m_texHorizontalCrosshair;
+    [FormerlySerializedAs("vertical_crosshair")] public Texture m_texVerticalCrosshair;
+    [FormerlySerializedAs("top_pos_crosshair")] public Vector2 m_vTopPosCrosshair;
+    [FormerlySerializedAs("bottom_pos_crosshair")] public Vector2 m_vBottomPosCrosshair;
+    [FormerlySerializedAs("left_pos_crosshair")] public Vector2 m_vLeftPosCrosshair;
+    [FormerlySerializedAs("right_pos_crosshair")] public Vector2 m_vRightPosCrosshair;
+    [FormerlySerializedAs("size_crosshair_vertical")] public Vector2 m_vSizeCrosshairVertical = new Vector2(1f, 1f);
+    [FormerlySerializedAs("size_crosshair_horizontal")] public Vector2 m_vSizeCrosshairHorizontal = new Vector2(1f, 1f);
+
+    [HideInInspector]
+    [FormerlySerializedAs("expandValues_crosshair")]
+    public Vector2 m_vExpandValuesCrosshair;
+
+    private float m_fFadeoutValue = 1f;
+
+    [FormerlySerializedAs("handsAnimator")]
+    public Animator m_animHands;
+
+    [Header("Animation names")]
+    [FormerlySerializedAs("reloadAnimationName")] public string m_strReloadAnimationName = "Player_Reload";
+    [FormerlySerializedAs("aimingAnimationName")] public string m_strAimingAnimationName = "Player_AImpose";
+    [FormerlySerializedAs("meeleAnimationName")] public string m_strMeleeAnimationName = "Character_Malee";
+
+    // ==================== 외부 공개 프로퍼티 ====================
+    public GunStyles CurrentStyle => m_eCurrentStyle;
+    public float BulletsIHave => m_fBulletsIHave;
+    public float BulletsInTheGun => m_fBulletsInTheGun;
+    public bool IsReloading => m_bIsReloading;
+    public bool IsMeleeAttack => m_bIsMeleeAttack;
+    public bool IsAiming => m_bIsAiming;
+    public Animator HandsAnimator => m_animHands;
+
+    private void OnDisable()
     {
-		this.trPlayer = _trPlayer;
-        m_cMouseLockScript = _mouseLockScript;
+        m_bIsReloading = false;
+        m_bIsMeleeAttack = false;
+        m_bIsAiming = false;
+        m_bIsAimingControlled = false;
+    }
 
-        mainCamera = trCamera;
-        secondCamera = _cameraSecond;
-        if (trCamera != null)
-            cameraComponent = trCamera.GetComponent<Camera>();
-        else
-            cameraComponent = null;
+    public void Initialize(
+        Transform _trPlayer,
+        MouseLookScript _cMouseLook,
+        Transform _trCamera,
+        Camera _camSecond,
+        GameObject _objBulletSpawnPlace,
+        AudioSource _asHitMarker,
+        TextMesh _tmHudBullets = null)
+    {
+        m_trPlayer = _trPlayer;
+        m_cMouseLook = _cMouseLook;
 
-        if (trPlayer != null)
+        m_trMainCamera = _trCamera;
+        m_camSecond = _camSecond;
+        m_camMain = (_trCamera != null) ? _trCamera.GetComponent<Camera>() : null;
+
+        if (m_trPlayer != null)
         {
-            playerMovementScript = trPlayer.GetComponent<PlayerMovementScript>();
-            playerComponent = trPlayer.GetComponent<Player>();
+            m_cPlayerMovement = m_trPlayer.GetComponent<PlayerMovementScript>();
+            m_cPlayer = m_trPlayer.GetComponent<Player>();
         }
 
-        bulletSpawnPlace = objBulletBulletSpawnPlace;
-		hitMarker = asHitMarker;
-        startLook = mouseSensitvity_notAiming;
-        startAim = mouseSensitvity_aiming;
-        startRun = mouseSensitvity_running;
+        m_objBulletSpawnPlace = _objBulletSpawnPlace;
+        m_asHitMarker = _asHitMarker;
+        if (_tmHudBullets != null)
+            m_tmHudBullets = _tmHudBullets;
 
-		if (m_cMouseLockScript)
-		{
-			rotationLastY = m_cMouseLockScript.currentYRotation;
-			rotationLastX = m_cMouseLockScript.currentCameraXRotation;
-		}
-		else
-		{
-			rotationLastY = 0;
-			rotationLastX = 0;
+        m_fStartLook = m_fMouseSensitivityNotAiming;
+        m_fStartAim = m_fMouseSensitivityAiming;
+        m_fStartRun = m_fMouseSensitivityRunning;
+
+        if (m_cMouseLook)
+        {
+            m_fRotationLastY = m_cMouseLook.CurrentYRotation;
+            m_fRotationLastX = m_cMouseLook.CurrentCameraXRotation;
+        }
+        else
+        {
+            m_fRotationLastY = 0f;
+            m_fRotationLastX = 0f;
         }
     }
 
-    [HideInInspector]
-	public Vector3 currentGunPosition;
-	[Header("Gun Positioning")]
-	[Tooltip("Vector 3 position from player SETUP for NON AIMING values")]
-	public Vector3 restPlacePosition;
-	[Tooltip("Vector 3 position from player SETUP for AIMING values")]
-	public Vector3 aimPlacePosition;
-	[Tooltip("Time that takes for gun to get into aiming stance.")]
-	public float gunAimTime = 0.1f;
-
-	[HideInInspector]
-	public bool reloading;
-
-	private Vector3 gunPosVelocity;
-	private float cameraZoomVelocity;
-	private float secondCameraZoomVelocity;
-
-	private Vector2 gunFollowTimeVelocity;
-
-    public void Start()
+    public void PlayHitMarkerSound()
     {
+        if (m_asHitMarker != null)
+            m_asHitMarker.Play();
     }
 
     public void UpdateProcess()
-	{
-        Animations();
+    {
+        UpdateAnimatorParameters();
+        ApplyCameraSensitivity();
+        UpdateGunPosition();
+        UpdateCameraSensitivityWhileMelee();
+        UpdateCrosshairExpansion();
 
-        GiveCameraScriptMySensitvity();
-
-        PositionGun();
-
-        LockCameraWhileMelee();
-
-        CrossHairExpansionWhenWalking();
-
-		float rps = roundsPerSecond > 0 ? roundsPerSecond : 5f;
-		waitTillNextFire -= rps * Time.deltaTime;
+        float fRps = m_fRoundsPerSecond > 0f ? m_fRoundsPerSecond : 5f;
+        m_fWaitTillNextFire -= fRps * Time.deltaTime;
     }
 
+    public void FixedUpdateProcess()
+    {
+        UpdateGunRotation();
+        UpdateAnimatorStates();
 
-	public void FixedUpdateProcess()
-	{
-        RotationGun();
-
-        MeeleAnimationsStates();
-
-        if (isAimingControlled && !reloading && !meeleAttack)
+        if (m_bIsAimingControlled && !m_bIsReloading && !m_bIsMeleeAttack)
         {
-            gunPrecision = gunPrecision_aiming;
-            recoilAmount_x = recoilAmount_x_;
-            recoilAmount_y = recoilAmount_y_;
-            recoilAmount_z = recoilAmount_z_;
-            currentGunPosition = Vector3.SmoothDamp(currentGunPosition, aimPlacePosition, ref gunPosVelocity, gunAimTime);
-            if (cameraComponent)
-                cameraComponent.fieldOfView = Mathf.SmoothDamp(cameraComponent.fieldOfView, cameraZoomRatio_aiming, ref cameraZoomVelocity, gunAimTime);
-            if (secondCamera)
-                secondCamera.fieldOfView = Mathf.SmoothDamp(secondCamera.fieldOfView, secondCameraZoomRatio_aiming, ref secondCameraZoomVelocity, gunAimTime);
+            m_fGunPrecision = m_fGunPrecisionAiming;
+            m_fRecoilAmountX = m_fRecoilAmountXAim;
+            m_fRecoilAmountY = m_fRecoilAmountYAim;
+            m_fRecoilAmountZ = m_fRecoilAmountZAim;
+            m_vCurrentGunPosition = Vector3.SmoothDamp(m_vCurrentGunPosition, m_vAimPlacePosition, ref m_vGunPosVelocity, m_fGunAimTime);
+            if (m_camMain)
+                m_camMain.fieldOfView = Mathf.SmoothDamp(m_camMain.fieldOfView, m_fCameraZoomRatioAiming, ref m_fCameraZoomVelocity, m_fGunAimTime);
+            if (m_camSecond)
+                m_camSecond.fieldOfView = Mathf.SmoothDamp(m_camSecond.fieldOfView, m_fSecondCameraZoomRatioAiming, ref m_fSecondCameraZoomVelocity, m_fGunAimTime);
         }
         else
         {
-            gunPrecision = gunPrecision_notAiming;
-            recoilAmount_x = recoilAmount_x_non;
-            recoilAmount_y = recoilAmount_y_non;
-            recoilAmount_z = recoilAmount_z_non;
-            currentGunPosition = Vector3.SmoothDamp(currentGunPosition, restPlacePosition, ref gunPosVelocity, gunAimTime);
-            if (cameraComponent)
-                cameraComponent.fieldOfView = Mathf.SmoothDamp(cameraComponent.fieldOfView, cameraZoomRatio_notAiming, ref cameraZoomVelocity, gunAimTime);
-            if (secondCamera)
-                secondCamera.fieldOfView = Mathf.SmoothDamp(secondCamera.fieldOfView, secondCameraZoomRatio_notAiming, ref secondCameraZoomVelocity, gunAimTime);
+            m_fGunPrecision = m_fGunPrecisionNotAiming;
+            m_fRecoilAmountX = m_fRecoilAmountXNon;
+            m_fRecoilAmountY = m_fRecoilAmountYNon;
+            m_fRecoilAmountZ = m_fRecoilAmountZNon;
+            m_vCurrentGunPosition = Vector3.SmoothDamp(m_vCurrentGunPosition, m_vRestPlacePosition, ref m_vGunPosVelocity, m_fGunAimTime);
+            if (m_camMain)
+                m_camMain.fieldOfView = Mathf.SmoothDamp(m_camMain.fieldOfView, m_fCameraZoomRatioNotAiming, ref m_fCameraZoomVelocity, m_fGunAimTime);
+            if (m_camSecond)
+                m_camSecond.fieldOfView = Mathf.SmoothDamp(m_camSecond.fieldOfView, m_fSecondCameraZoomRatioNotAiming, ref m_fSecondCameraZoomVelocity, m_fGunAimTime);
         }
     }
 
-	// ==================== 마리오네트 사격/조준 API ====================
+    // ==================== 마리오네트 사격/조준 API ====================
 
-	public void SetAiming(bool aiming)
-	{
-		isAimingControlled = aiming;
-	}
-
-	public void TriggerShoot()
-	{
-		if (!meeleAttack)
-		{
-			ShootMethod();
-		}
-	}
-
-	public void TriggerReload()
-	{
-		if (!reloading && !meeleAttack)
-		{
-			StartCoroutine(Reload_Animation());
-		}
-	}
-
-	public void TriggerMelee()
-	{
-		if (!meeleAttack)
-		{
-			StartCoroutine(AnimationMeeleAttack());
-		}
-	}
-
-	[Header("Sensitvity of the gun")]
-	[Tooltip("Sensitvity of this gun while not aiming.")]
-	public float mouseSensitvity_notAiming = 10;
-	[Tooltip("Sensitvity of this gun while aiming.")]
-	public float mouseSensitvity_aiming = 5;
-	[Tooltip("Sensitvity of this gun while running.")]
-	public float mouseSensitvity_running = 4;
-
-	void GiveCameraScriptMySensitvity(){
-		if(m_cMouseLockScript)
-		{ 
-			m_cMouseLockScript.mouseSensitvity_notAiming = mouseSensitvity_notAiming;
-			m_cMouseLockScript.mouseSensitvity_aiming = mouseSensitvity_aiming;
-        }
+    public void SetAiming(bool _bAiming)
+    {
+        m_bIsAimingControlled = _bAiming;
     }
 
-	void CrossHairExpansionWhenWalking(){
-		if (playerComponent != null && !playerComponent.isPlayer) return;
-
-		if (!trPlayer) return;
-		Rigidbody rigidbody = trPlayer.GetComponent<Rigidbody>();
-
-        if (rigidbody && rigidbody.linearVelocity.magnitude > 1 && !isAimingControlled){
-
-			expandValues_crosshair += new Vector2(20, 40) * Time.deltaTime;
-			if(playerMovementScript && playerMovementScript.maxSpeed < runningSpeed){
-				expandValues_crosshair = new Vector2(Mathf.Clamp(expandValues_crosshair.x, 0, 10), Mathf.Clamp(expandValues_crosshair.y,0,20));
-				fadeout_value = Mathf.Lerp(fadeout_value, 1, Time.deltaTime * 2);
-			}
-			else{
-				fadeout_value = Mathf.Lerp(fadeout_value, 0, Time.deltaTime * 10);
-				expandValues_crosshair = new Vector2(Mathf.Clamp(expandValues_crosshair.x, 0, 20), Mathf.Clamp(expandValues_crosshair.y,0,40));
-			}
-		}
-		else{
-			expandValues_crosshair = Vector2.Lerp(expandValues_crosshair, Vector2.zero, Time.deltaTime * 5);
-			expandValues_crosshair = new Vector2(Mathf.Clamp(expandValues_crosshair.x, 0, 10), Mathf.Clamp(expandValues_crosshair.y,0,20));
-			fadeout_value = Mathf.Lerp(fadeout_value, 1, Time.deltaTime * 2);
-
-		}
-
-	}
-
-	[HideInInspector]
-	public bool meeleAttack;
-	[HideInInspector]
-	public bool aiming;
-
-	void MeeleAnimationsStates(){
-		if (handsAnimator) {
-			meeleAttack = handsAnimator.GetCurrentAnimatorStateInfo (0).IsName (meeleAnimationName);
-			aiming = handsAnimator.GetCurrentAnimatorStateInfo (0).IsName (aimingAnimationName);	
-		}
-	}
-
-	IEnumerator AnimationMeeleAttack(){
-		if (handsAnimator) {
-			handsAnimator.SetBool("meeleAttack",true);
-			yield return new WaitForSeconds(0.1f);
-			handsAnimator.SetBool("meeleAttack",false);
-		}
-	}
-
-	private float startLook, startAim, startRun;
-
-	void LockCameraWhileMelee(){
-		if (meeleAttack) {
-			mouseSensitvity_notAiming = 2;
-			mouseSensitvity_aiming = 1.6f;
-			mouseSensitvity_running = 1;
-		} else {
-			mouseSensitvity_notAiming = startLook;
-			mouseSensitvity_aiming = startAim;
-			mouseSensitvity_running = startRun;
-		}
-	}
-
-
-	private Vector3 velV;
-	[HideInInspector]
-	public Transform mainCamera;
-	private Camera secondCamera;
-
-	void PositionGun(){
-		// Player(ViewPivot/Camera)의 자식 오브젝트로 귀속된 경우 로컬 좌표만으로 위치 및 반동 제어
-		if (transform.parent != null)
-		{
-			Vector3 targetLocalPos = new Vector3(
-				-(currentGunPosition.x + currentRecoilXPos),
-				(currentGunPosition.y + currentRecoilYPos),
-				(currentGunPosition.z + currentRecoilZPos)
-			);
-			transform.localPosition = Vector3.SmoothDamp(transform.localPosition, targetLocalPos, ref velV, 0f);
-
-			if (playerMovementScript)
-				playerMovementScript.cameraPosition = new Vector3(currentRecoilXPos, currentRecoilYPos, 0);
-
-			currentRecoilZPos = Mathf.SmoothDamp(currentRecoilZPos, 0, ref velocity_z_recoil, recoilOverTime_z);
-			currentRecoilXPos = Mathf.SmoothDamp(currentRecoilXPos, 0, ref velocity_x_recoil, recoilOverTime_x);
-			currentRecoilYPos = Mathf.SmoothDamp(currentRecoilYPos, 0, ref velocity_y_recoil, recoilOverTime_y);
-			return;
-		}
-
-		Transform refTransform = mainCamera != null ? mainCamera : trPlayer;
-
-		if (refTransform)
-		{
-			transform.position = Vector3.SmoothDamp(transform.position,
-				refTransform.position -
-				(refTransform.right * (currentGunPosition.x + currentRecoilXPos)) +
-				(refTransform.up * (currentGunPosition.y + currentRecoilYPos)) +
-				(refTransform.forward * (currentGunPosition.z + currentRecoilZPos)), ref velV, 0);
-
-            if (playerMovementScript)
-                playerMovementScript.cameraPosition = new Vector3(currentRecoilXPos, currentRecoilYPos, 0);
-
-            currentRecoilZPos = Mathf.SmoothDamp(currentRecoilZPos, 0, ref velocity_z_recoil, recoilOverTime_z);
-            currentRecoilXPos = Mathf.SmoothDamp(currentRecoilXPos, 0, ref velocity_x_recoil, recoilOverTime_x);
-            currentRecoilYPos = Mathf.SmoothDamp(currentRecoilYPos, 0, ref velocity_y_recoil, recoilOverTime_y);
-        }
-	}
-
-
-	[Header("Rotation")]
-	private Vector2 velocityGunRotate;
-	private float gunWeightX,gunWeightY;
-	[Tooltip("The time waepon will lag behind the camera view best set to '0'.")]
-	public float rotationLagTime = 0f;
-	private float rotationLastY;
-	private float rotationDeltaY;
-	private float angularVelocityY;
-	private float rotationLastX;
-	private float rotationDeltaX;
-	private float angularVelocityX;
-	[Tooltip("Value of forward rotation multiplier.")]
-	public Vector2 forwardRotationAmount = Vector2.one;
-
-	void RotationGun(){
-		if (transform.parent != null)
-		{
-			if (m_cMouseLockScript)
-			{
-				rotationDeltaY = m_cMouseLockScript.currentYRotation - rotationLastY;
-				rotationDeltaX = m_cMouseLockScript.currentCameraXRotation - rotationLastX;
-
-				rotationLastY = m_cMouseLockScript.currentYRotation;
-				rotationLastX = m_cMouseLockScript.currentCameraXRotation;
-
-				angularVelocityY = Mathf.Lerp(angularVelocityY, rotationDeltaY, Time.deltaTime * 5);
-				angularVelocityX = Mathf.Lerp(angularVelocityX, rotationDeltaX, Time.deltaTime * 5);
-
-				// 부모(Camera/ViewPivot)가 이미 시선 회전을 담당하므로 로컬 흔들림(Sway)만 반영
-				transform.localRotation = Quaternion.Euler(
-					angularVelocityX * forwardRotationAmount.x,
-					angularVelocityY * forwardRotationAmount.y,
-					0f
-				);
-			}
-			else
-			{
-				transform.localRotation = Quaternion.identity;
-			}
-			return;
-		}
-
-		if (m_cMouseLockScript)
-		{
-			rotationDeltaY = m_cMouseLockScript.currentYRotation - rotationLastY;
-			rotationDeltaX = m_cMouseLockScript.currentCameraXRotation - rotationLastX;
-
-			rotationLastY = m_cMouseLockScript.currentYRotation;
-			rotationLastX = m_cMouseLockScript.currentCameraXRotation;
-
-			angularVelocityY = Mathf.Lerp(angularVelocityY, rotationDeltaY, Time.deltaTime * 5);
-			angularVelocityX = Mathf.Lerp(angularVelocityX, rotationDeltaX, Time.deltaTime * 5);
-
-			gunWeightX = Mathf.SmoothDamp(gunWeightX, m_cMouseLockScript.currentCameraXRotation, ref velocityGunRotate.x, rotationLagTime);
-			gunWeightY = Mathf.SmoothDamp(gunWeightY, m_cMouseLockScript.currentYRotation, ref velocityGunRotate.y, rotationLagTime);
-
-			transform.rotation = Quaternion.Euler(gunWeightX + (angularVelocityX * forwardRotationAmount.x), gunWeightY + (angularVelocityY * forwardRotationAmount.y), 0);
-		}
-		else if (trPlayer)
-		{
-			transform.rotation = trPlayer.rotation;
-        }
-    }
-
-	private float currentRecoilZPos;
-	private float currentRecoilXPos;
-	private float currentRecoilYPos;
-
-	public void RecoilMath(){
-		currentRecoilZPos -= recoilAmount_z;
-		currentRecoilXPos -= (Random.value - 0.5f) * recoilAmount_x;
-		currentRecoilYPos -= (Random.value - 0.5f) * recoilAmount_y;
-		if (m_cMouseLockScript)
-		{
-			m_cMouseLockScript.wantedCameraXRotation -= Mathf.Abs(currentRecoilYPos * gunPrecision);
-			m_cMouseLockScript.wantedYRotation -= (currentRecoilXPos * gunPrecision);
-		}
-		else if (transform.parent == null && trPlayer)
-		{
-			transform.rotation = trPlayer.rotation;
-		}
-
-        expandValues_crosshair += new Vector2(6, 12);
-	}
-
-	[Header("Shooting setup - MUSTDO")]
-	[HideInInspector] public GameObject bulletSpawnPlace;
-	[Tooltip("Bullet prefab that this waepon will shoot.")]
-	public GameObject bullet;
-	[Tooltip("Rounds per second if weapon is set to automatic rafal.")]
-	public float roundsPerSecond;
-	private float waitTillNextFire;
-
-	public void GetBulletSpawnTransform(out Vector3 spawnPosition, out Quaternion spawnRotation)
-	{
-		bool isLocalPlayer = (playerComponent == null || playerComponent.isPlayer) && mainCamera != null;
-
-		if (isLocalPlayer)
-		{
-			spawnRotation = mainCamera.rotation;
-
-			if (bulletSpawnPlace != null && bulletSpawnPlace != trPlayer.gameObject)
-				spawnPosition = bulletSpawnPlace.transform.position;
-			else
-				spawnPosition = mainCamera.position + (mainCamera.forward * 0.4f);
-		}
-		else
-		{
-			// NPC: 총알 스폰 기본 위치 결정 (가슴/눈높이 앞)
-			Vector3 forwardDir = trPlayer != null ? trPlayer.forward : transform.forward;
-
-			if (bulletSpawnPlace != null && bulletSpawnPlace != trPlayer.gameObject)
-				spawnPosition = bulletSpawnPlace.transform.position;
-			else if (trPlayer != null)
-				spawnPosition = trPlayer.position + (Vector3.up * 1.4f) + (forwardDir * 0.4f);
-			else
-				spawnPosition = transform.position + (forwardDir * 0.4f);
-
-			// NPC의 조준 목표점(적의 중심)이 있는 경우 목표를 향한 3D 방향으로 정밀 조준
-			if (playerComponent != null && playerComponent.AimTargetPosition.HasValue)
-			{
-				Vector3 targetPos = playerComponent.AimTargetPosition.Value;
-				Vector3 aimDir = (targetPos - spawnPosition).normalized;
-				if (aimDir.sqrMagnitude > 0.001f)
-				{
-					spawnRotation = Quaternion.LookRotation(aimDir, Vector3.up);
-					return;
-				}
-			}
-
-			spawnRotation = Quaternion.LookRotation(forwardDir, Vector3.up);
-		}
-	}
-
-	[HideInInspector]	public float recoilAmount_z = 0.5f;
-	[HideInInspector]	public float recoilAmount_x = 0.5f;
-	[HideInInspector]	public float recoilAmount_y = 0.5f;
-	[Header("Recoil Not Aiming")]
-	public float recoilAmount_z_non = 0.5f;
-	public float recoilAmount_x_non = 0.5f;
-	public float recoilAmount_y_non = 0.5f;
-	[Header("Recoil Aiming")]
-	public float recoilAmount_z_ = 0.5f;
-	public float recoilAmount_x_ = 0.5f;
-	public float recoilAmount_y_ = 0.5f;
-	[HideInInspector]public float velocity_z_recoil,velocity_x_recoil,velocity_y_recoil;
-	[Header("")]
-	public float recoilOverTime_z = 0.5f;
-	public float recoilOverTime_x = 0.5f;
-	public float recoilOverTime_y = 0.5f;
-
-	[Header("Gun Precision")]
-	public float gunPrecision_notAiming = 200.0f;
-	public float gunPrecision_aiming = 100.0f;
-	public float cameraZoomRatio_notAiming = 60;
-	public float cameraZoomRatio_aiming = 40;
-	public float secondCameraZoomRatio_notAiming = 60;
-	public float secondCameraZoomRatio_aiming = 40;
-	[HideInInspector]
-	public float gunPrecision;
-
-	[Tooltip("Audios for shootingSound, and reloading.")]
-	public AudioSource shoot_sound_source, reloadSound_source;
-	[Tooltip("Sound that plays after successful attack bullet hit.")]
-	public static AudioSource hitMarker;
-
-	public static void HitMarkerSound(){
-		if (hitMarker)
-			hitMarker.Play();
-	}
-
-	[Tooltip("Array of muzzel flashes, randmly one will appear after each bullet.")]
-	public GameObject[] muzzelFlash;
-	[Tooltip("Place on the gun where muzzel flash will appear.")]
-	public GameObject muzzelSpawn;
-	private GameObject holdFlash;
-	private GameObject holdSmoke;
-
-	public void ShootMethod(){
-		bool canShootSpeed = (playerMovementScript == null || playerMovementScript.maxSpeed <= runningSpeed);
-
-		if(waitTillNextFire <= 0 && !reloading && canShootSpeed){
-
-			if(bulletsInTheGun > 0){
-
-				GetBulletSpawnTransform(out Vector3 spawnPos, out Quaternion spawnRot);
-
-				if (bullet)
-				{
-					Instantiate(bullet, spawnPos, spawnRot);
-				}
-				else
-				{
-					print("Missing the bullet prefab");
-				}
-
-				if (muzzelSpawn && muzzelFlash != null && muzzelFlash.Length > 0)
-				{
-					int randomNumberForMuzzelFlash = Random.Range(0, muzzelFlash.Length);
-					if (muzzelFlash[randomNumberForMuzzelFlash] != null)
-					{
-						holdFlash = Instantiate(muzzelFlash[randomNumberForMuzzelFlash], muzzelSpawn.transform.position, muzzelSpawn.transform.rotation * Quaternion.Euler(0,0,90)) as GameObject;
-						holdFlash.transform.parent = muzzelSpawn.transform;
-					}
-				}
-
-				if (shoot_sound_source)
-					shoot_sound_source.Play ();
-				else
-					print ("Missing 'Shoot Sound Source'.");
-
-				RecoilMath();
-
-				waitTillNextFire = 1;
-				bulletsInTheGun -= 1;
-			}
-			else{
-				StartCoroutine("Reload_Animation");
-			}
-
-		}
-
-	}
-
-	[Header("reload time after anima")]
-	public float reloadChangeBulletsTime;
-	IEnumerator Reload_Animation(){
-		if(bulletsIHave > 0 && bulletsInTheGun < amountOfBulletsPerLoad && !reloading){
-
-			if (reloadSound_source && reloadSound_source.isPlaying == false) {
-				reloadSound_source.Play ();
-			}
-
-			if (handsAnimator) {
-				handsAnimator.SetBool("reloading",true);
-				yield return new WaitForSeconds(0.5f);
-				handsAnimator.SetBool("reloading",false);
-			}
-
-			yield return new WaitForSeconds (reloadChangeBulletsTime - 0.5f);
-			if (meeleAttack == false && playerMovementScript && playerMovementScript.maxSpeed != runningSpeed) {
-				PlayerMovementScript movementScript = trPlayer ? trPlayer.GetComponent<PlayerMovementScript>() : null;
-
-                if (movementScript && movementScript._freakingZombiesSound)
-                    movementScript._freakingZombiesSound.Play ();
-				
-				if (bulletsIHave - amountOfBulletsPerLoad >= 0) {
-					bulletsIHave -= amountOfBulletsPerLoad - bulletsInTheGun;
-					bulletsInTheGun = amountOfBulletsPerLoad;
-				} else if (bulletsIHave - amountOfBulletsPerLoad < 0) {
-					float valueForBoth = amountOfBulletsPerLoad - bulletsInTheGun;
-					if (bulletsIHave - valueForBoth < 0) {
-						bulletsInTheGun += bulletsIHave;
-						bulletsIHave = 0;
-					} else {
-						bulletsIHave -= valueForBoth;
-						bulletsInTheGun += valueForBoth;
-					}
-				}
-			} else {
-				if (reloadSound_source)
-					reloadSound_source.Stop ();
-
-				print ("Reload interrupted via meele attack");
-			}
-
-		}
-	}
-
-	[Tooltip("HUD bullets to display bullet count on screen. Will be find under name 'HUD_bullets' in scene.")]
-	public TextMesh HUD_bullets;
-	void OnGUI(){
-		if (playerComponent != null && !playerComponent.isPlayer) return;
-		if (cameraComponent == null) return;
-
-		if(!HUD_bullets){
-			try{
-				HUD_bullets = GameObject.Find("HUD_bullets")?.GetComponent<TextMesh>();
-			}
-			catch(System.Exception ex){
-				print("Couldnt find the HUD_Bullets ->" + ex.StackTrace.ToString());
-			}
-		}
-		if(m_cMouseLockScript && HUD_bullets)
-			HUD_bullets.text = bulletsIHave.ToString() + " - " + bulletsInTheGun.ToString();
-
-		DrawCrosshair();
-	}
-
-	[Header("Crosshair properties")]
-	public Texture horizontal_crosshair, vertical_crosshair;
-	public Vector2 top_pos_crosshair, bottom_pos_crosshair, left_pos_crosshair, right_pos_crosshair;
-	public Vector2 size_crosshair_vertical = new Vector2(1,1), size_crosshair_horizontal = new Vector2(1,1);
-	[HideInInspector]
-	public Vector2 expandValues_crosshair;
-	private float fadeout_value = 1;
-
-	void DrawCrosshair(){
-		GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, fadeout_value);
-		if(!isAimingControlled){
-			GUI.DrawTexture(new Rect(vec2(left_pos_crosshair).x + position_x(-expandValues_crosshair.x) + Screen.width/2,Screen.height/2 + vec2(left_pos_crosshair).y, vec2(size_crosshair_horizontal).x, vec2(size_crosshair_horizontal).y), vertical_crosshair);
-			GUI.DrawTexture(new Rect(vec2(right_pos_crosshair).x + position_x(expandValues_crosshair.x) + Screen.width/2,Screen.height/2 + vec2(right_pos_crosshair).y, vec2(size_crosshair_horizontal).x, vec2(size_crosshair_horizontal).y), vertical_crosshair);
-
-			GUI.DrawTexture(new Rect(vec2(top_pos_crosshair).x + Screen.width/2,Screen.height/2 + vec2(top_pos_crosshair).y + position_y(-expandValues_crosshair.y), vec2(size_crosshair_vertical).x, vec2(size_crosshair_vertical).y ), horizontal_crosshair);
-			GUI.DrawTexture(new Rect(vec2(bottom_pos_crosshair).x + Screen.width/2,Screen.height/2 +vec2(bottom_pos_crosshair).y + position_y(expandValues_crosshair.y), vec2(size_crosshair_vertical).x, vec2(size_crosshair_vertical).y), horizontal_crosshair);
-		}
-
-	}
-
-	private float position_x(float var){
-		return Screen.width * var / 100;
-	}
-	private float position_y(float var)
-	{
-		return Screen.height * var / 100;
-	}
-	private float size_x(float var)
-	{
-		return Screen.width * var / 100;
-	}
-	private float size_y(float var)
-	{
-		return Screen.height * var / 100;
-	}
-	private Vector2 vec2(Vector2 _vec2){
-		return new Vector2(Screen.width * _vec2.x / 100, Screen.height * _vec2.y / 100);
-	}
-
-	public Animator handsAnimator;
-
-	void Animations(){
-
-		if(handsAnimator && playerMovementScript)
+    public void TriggerShoot()
+    {
+        if (!m_bIsMeleeAttack)
         {
-			reloading = handsAnimator.GetCurrentAnimatorStateInfo(0).IsName(reloadAnimationName);
+            ShootMethod();
+        }
+    }
 
-			handsAnimator.SetFloat("walkSpeed", playerMovementScript.currentSpeed);
-			handsAnimator.SetBool("aiming", isAimingControlled);
-			handsAnimator.SetInteger("maxSpeed", playerMovementScript.maxSpeed);
-		}
+    public void TriggerReload()
+    {
+        if (!m_bIsReloading && !m_bIsMeleeAttack)
+        {
+            StartCoroutine(ReloadAnimationCoroutine());
+        }
+    }
 
-	}
+    public void TriggerMelee()
+    {
+        if (!m_bIsMeleeAttack)
+        {
+            StartCoroutine(MeleeAttackAnimationCoroutine());
+        }
+    }
 
-	[Header("Animation names")]
-	public string reloadAnimationName = "Player_Reload";
-	public string aimingAnimationName = "Player_AImpose";
-	public string meeleAnimationName = "Character_Malee";
+    private void ApplyCameraSensitivity()
+    {
+        if (m_cMouseLook)
+        {
+            m_cMouseLook.SetSensitivity(m_fMouseSensitivityNotAiming, m_fMouseSensitivityAiming);
+        }
+    }
+
+    private void UpdateCrosshairExpansion()
+    {
+        if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!m_trPlayer) return;
+
+        Rigidbody rbPlayer = m_trPlayer.GetComponent<Rigidbody>();
+
+        if (rbPlayer && rbPlayer.linearVelocity.magnitude > 1f && !m_bIsAimingControlled)
+        {
+            m_vExpandValuesCrosshair += new Vector2(20f, 40f) * Time.deltaTime;
+            if (m_cPlayerMovement && m_cPlayerMovement.MaxSpeed < m_nRunningSpeed)
+            {
+                m_vExpandValuesCrosshair = new Vector2(Mathf.Clamp(m_vExpandValuesCrosshair.x, 0f, 10f), Mathf.Clamp(m_vExpandValuesCrosshair.y, 0f, 20f));
+                m_fFadeoutValue = Mathf.Lerp(m_fFadeoutValue, 1f, Time.deltaTime * 2f);
+            }
+            else
+            {
+                m_fFadeoutValue = Mathf.Lerp(m_fFadeoutValue, 0f, Time.deltaTime * 10f);
+                m_vExpandValuesCrosshair = new Vector2(Mathf.Clamp(m_vExpandValuesCrosshair.x, 0f, 20f), Mathf.Clamp(m_vExpandValuesCrosshair.y, 0f, 40f));
+            }
+        }
+        else
+        {
+            m_vExpandValuesCrosshair = Vector2.Lerp(m_vExpandValuesCrosshair, Vector2.zero, Time.deltaTime * 5f);
+            m_vExpandValuesCrosshair = new Vector2(Mathf.Clamp(m_vExpandValuesCrosshair.x, 0f, 10f), Mathf.Clamp(m_vExpandValuesCrosshair.y, 0f, 20f));
+            m_fFadeoutValue = Mathf.Lerp(m_fFadeoutValue, 1f, Time.deltaTime * 2f);
+        }
+    }
+
+    private void UpdateAnimatorStates()
+    {
+        if (m_animHands)
+        {
+            AnimatorStateInfo stateInfo = m_animHands.GetCurrentAnimatorStateInfo(0);
+            m_bIsMeleeAttack = stateInfo.IsName(m_strMeleeAnimationName);
+            m_bIsAiming = stateInfo.IsName(m_strAimingAnimationName);
+        }
+    }
+
+    private IEnumerator MeleeAttackAnimationCoroutine()
+    {
+        if (m_animHands)
+        {
+            m_animHands.SetBool("meeleAttack", true);
+            yield return new WaitForSeconds(0.1f);
+            m_animHands.SetBool("meeleAttack", false);
+        }
+    }
+
+    private void UpdateCameraSensitivityWhileMelee()
+    {
+        if (m_bIsMeleeAttack)
+        {
+            m_fMouseSensitivityNotAiming = 2f;
+            m_fMouseSensitivityAiming = 1.6f;
+            m_fMouseSensitivityRunning = 1f;
+        }
+        else
+        {
+            m_fMouseSensitivityNotAiming = m_fStartLook;
+            m_fMouseSensitivityAiming = m_fStartAim;
+            m_fMouseSensitivityRunning = m_fStartRun;
+        }
+    }
+
+    private void UpdateGunPosition()
+    {
+        if (transform.parent != null)
+        {
+            Vector3 vTargetLocalPos = new Vector3(
+                -(m_vCurrentGunPosition.x + m_fCurrentRecoilXPos),
+                (m_vCurrentGunPosition.y + m_fCurrentRecoilYPos),
+                (m_vCurrentGunPosition.z + m_fCurrentRecoilZPos)
+            );
+            transform.localPosition = Vector3.SmoothDamp(transform.localPosition, vTargetLocalPos, ref m_vVelV, 0f);
+
+            if (m_cPlayerMovement)
+                m_cPlayerMovement.m_vCameraPosition = new Vector3(m_fCurrentRecoilXPos, m_fCurrentRecoilYPos, 0f);
+
+            m_fCurrentRecoilZPos = Mathf.SmoothDamp(m_fCurrentRecoilZPos, 0f, ref m_fVelocityZRecoil, m_fRecoilOverTimeZ);
+            m_fCurrentRecoilXPos = Mathf.SmoothDamp(m_fCurrentRecoilXPos, 0f, ref m_fVelocityXRecoil, m_fRecoilOverTimeX);
+            m_fCurrentRecoilYPos = Mathf.SmoothDamp(m_fCurrentRecoilYPos, 0f, ref m_fVelocityYRecoil, m_fRecoilOverTimeY);
+            return;
+        }
+
+        Transform trRef = m_trMainCamera != null ? m_trMainCamera : m_trPlayer;
+        if (trRef)
+        {
+            transform.position = Vector3.SmoothDamp(transform.position,
+                trRef.position -
+                (trRef.right * (m_vCurrentGunPosition.x + m_fCurrentRecoilXPos)) +
+                (trRef.up * (m_vCurrentGunPosition.y + m_fCurrentRecoilYPos)) +
+                (trRef.forward * (m_vCurrentGunPosition.z + m_fCurrentRecoilZPos)), ref m_vVelV, 0f);
+
+            if (m_cPlayerMovement)
+                m_cPlayerMovement.m_vCameraPosition = new Vector3(m_fCurrentRecoilXPos, m_fCurrentRecoilYPos, 0f);
+
+            m_fCurrentRecoilZPos = Mathf.SmoothDamp(m_fCurrentRecoilZPos, 0f, ref m_fVelocityZRecoil, m_fRecoilOverTimeZ);
+            m_fCurrentRecoilXPos = Mathf.SmoothDamp(m_fCurrentRecoilXPos, 0f, ref m_fVelocityXRecoil, m_fRecoilOverTimeX);
+            m_fCurrentRecoilYPos = Mathf.SmoothDamp(m_fCurrentRecoilYPos, 0f, ref m_fVelocityYRecoil, m_fRecoilOverTimeY);
+        }
+    }
+
+    private void UpdateGunRotation()
+    {
+        if (transform.parent != null)
+        {
+            if (m_cMouseLook)
+            {
+                m_fRotationDeltaY = m_cMouseLook.CurrentYRotation - m_fRotationLastY;
+                m_fRotationDeltaX = m_cMouseLook.CurrentCameraXRotation - m_fRotationLastX;
+
+                m_fRotationLastY = m_cMouseLook.CurrentYRotation;
+                m_fRotationLastX = m_cMouseLook.CurrentCameraXRotation;
+
+                m_fAngularVelocityY = Mathf.Lerp(m_fAngularVelocityY, m_fRotationDeltaY, Time.deltaTime * 5f);
+                m_fAngularVelocityX = Mathf.Lerp(m_fAngularVelocityX, m_fRotationDeltaX, Time.deltaTime * 5f);
+
+                transform.localRotation = Quaternion.Euler(
+                    m_fAngularVelocityX * m_vForwardRotationAmount.x,
+                    m_fAngularVelocityY * m_vForwardRotationAmount.y,
+                    0f
+                );
+            }
+            else
+            {
+                transform.localRotation = Quaternion.identity;
+            }
+            return;
+        }
+
+        if (m_cMouseLook)
+        {
+            m_fRotationDeltaY = m_cMouseLook.CurrentYRotation - m_fRotationLastY;
+            m_fRotationDeltaX = m_cMouseLook.CurrentCameraXRotation - m_fRotationLastX;
+
+            m_fRotationLastY = m_cMouseLook.CurrentYRotation;
+            m_fRotationLastX = m_cMouseLook.CurrentCameraXRotation;
+
+            m_fAngularVelocityY = Mathf.Lerp(m_fAngularVelocityY, m_fRotationDeltaY, Time.deltaTime * 5f);
+            m_fAngularVelocityX = Mathf.Lerp(m_fAngularVelocityX, m_fRotationDeltaX, Time.deltaTime * 5f);
+
+            m_fGunWeightX = Mathf.SmoothDamp(m_fGunWeightX, m_cMouseLook.CurrentCameraXRotation, ref m_vVelocityGunRotate.x, m_fRotationLagTime);
+            m_fGunWeightY = Mathf.SmoothDamp(m_fGunWeightY, m_cMouseLook.CurrentYRotation, ref m_vVelocityGunRotate.y, m_fRotationLagTime);
+
+            transform.rotation = Quaternion.Euler(m_fGunWeightX + (m_fAngularVelocityX * m_vForwardRotationAmount.x), m_fGunWeightY + (m_fAngularVelocityY * m_vForwardRotationAmount.y), 0f);
+        }
+        else if (m_trPlayer)
+        {
+            transform.rotation = m_trPlayer.rotation;
+        }
+    }
+
+    public void ApplyRecoil()
+    {
+        m_fCurrentRecoilZPos -= m_fRecoilAmountZ;
+        m_fCurrentRecoilXPos -= (Random.value - 0.5f) * m_fRecoilAmountX;
+        m_fCurrentRecoilYPos -= (Random.value - 0.5f) * m_fRecoilAmountY;
+
+        if (m_cMouseLook)
+        {
+            m_cMouseLook.WantedCameraXRotation -= Mathf.Abs(m_fCurrentRecoilYPos * m_fGunPrecision);
+            m_cMouseLook.WantedYRotation -= (m_fCurrentRecoilXPos * m_fGunPrecision);
+        }
+        else if (transform.parent == null && m_trPlayer)
+        {
+            transform.rotation = m_trPlayer.rotation;
+        }
+
+        m_vExpandValuesCrosshair += new Vector2(6f, 12f);
+    }
+
+    public void GetBulletSpawnTransform(out Vector3 _vSpawnPosition, out Quaternion _qSpawnRotation)
+    {
+        bool bIsLocalPlayer = (m_cPlayer == null || m_cPlayer.IsPlayer) && m_trMainCamera != null;
+
+        if (bIsLocalPlayer)
+        {
+            _qSpawnRotation = m_trMainCamera.rotation;
+
+            if (m_objBulletSpawnPlace != null && m_objBulletSpawnPlace != m_trPlayer.gameObject)
+                _vSpawnPosition = m_objBulletSpawnPlace.transform.position;
+            else
+                _vSpawnPosition = m_trMainCamera.position + (m_trMainCamera.forward * 0.4f);
+        }
+        else
+        {
+            Vector3 vForwardDir = m_trPlayer != null ? m_trPlayer.forward : transform.forward;
+
+            if (m_objBulletSpawnPlace != null && m_objBulletSpawnPlace != m_trPlayer.gameObject)
+                _vSpawnPosition = m_objBulletSpawnPlace.transform.position;
+            else if (m_trPlayer != null)
+                _vSpawnPosition = m_trPlayer.position + (Vector3.up * 1.4f) + (vForwardDir * 0.4f);
+            else
+                _vSpawnPosition = transform.position + (vForwardDir * 0.4f);
+
+            if (m_cPlayer != null && m_cPlayer.AimTargetPosition.HasValue)
+            {
+                Vector3 vTargetPos = m_cPlayer.AimTargetPosition.Value;
+                Vector3 vAimDir = (vTargetPos - _vSpawnPosition).normalized;
+                if (vAimDir.sqrMagnitude > 0.001f)
+                {
+                    _qSpawnRotation = Quaternion.LookRotation(vAimDir, Vector3.up);
+                    return;
+                }
+            }
+
+            _qSpawnRotation = Quaternion.LookRotation(vForwardDir, Vector3.up);
+        }
+    }
+
+    public void ShootMethod()
+    {
+        bool bCanShootSpeed = (m_cPlayerMovement == null || m_cPlayerMovement.MaxSpeed <= m_nRunningSpeed);
+
+        if (m_fWaitTillNextFire <= 0f && !m_bIsReloading && bCanShootSpeed)
+        {
+            if (m_fBulletsInTheGun > 0f)
+            {
+                GetBulletSpawnTransform(out Vector3 vSpawnPos, out Quaternion qSpawnRot);
+
+                if (m_prefabBullet)
+                {
+                    Instantiate(m_prefabBullet, vSpawnPos, qSpawnRot);
+                }
+
+                if (m_objMuzzleSpawn && m_arrPrefabMuzzleFlash != null && m_arrPrefabMuzzleFlash.Length > 0)
+                {
+                    int nRandomIdx = Random.Range(0, m_arrPrefabMuzzleFlash.Length);
+                    if (m_arrPrefabMuzzleFlash[nRandomIdx] != null)
+                    {
+                        m_objHoldFlash = Instantiate(m_arrPrefabMuzzleFlash[nRandomIdx], m_objMuzzleSpawn.transform.position, m_objMuzzleSpawn.transform.rotation * Quaternion.Euler(0f, 0f, 90f));
+                        m_objHoldFlash.transform.parent = m_objMuzzleSpawn.transform;
+                    }
+                }
+
+                if (m_asShootSound)
+                    m_asShootSound.Play();
+
+                ApplyRecoil();
+
+                m_fWaitTillNextFire = 1f;
+                m_fBulletsInTheGun -= 1f;
+            }
+            else
+            {
+                StartCoroutine(ReloadAnimationCoroutine());
+            }
+        }
+    }
+
+    private IEnumerator ReloadAnimationCoroutine()
+    {
+        if (m_fBulletsIHave > 0f && m_fBulletsInTheGun < m_fAmountOfBulletsPerLoad && !m_bIsReloading)
+        {
+            if (m_asReloadSound && !m_asReloadSound.isPlaying)
+            {
+                m_asReloadSound.Play();
+            }
+
+            if (m_animHands)
+            {
+                m_animHands.SetBool("reloading", true);
+                yield return new WaitForSeconds(0.5f);
+                m_animHands.SetBool("reloading", false);
+            }
+
+            yield return new WaitForSeconds(m_fReloadChangeBulletsTime - 0.5f);
+
+            if (!m_bIsMeleeAttack && m_cPlayerMovement && m_cPlayerMovement.MaxSpeed != m_nRunningSpeed)
+            {
+                if (m_cPlayerMovement.m_asReloadVoiceSound)
+                    m_cPlayerMovement.m_asReloadVoiceSound.Play();
+
+                float fNeeded = m_fAmountOfBulletsPerLoad - m_fBulletsInTheGun;
+                if (m_fBulletsIHave >= fNeeded)
+                {
+                    m_fBulletsIHave -= fNeeded;
+                    m_fBulletsInTheGun = m_fAmountOfBulletsPerLoad;
+                }
+                else
+                {
+                    m_fBulletsInTheGun += m_fBulletsIHave;
+                    m_fBulletsIHave = 0f;
+                }
+            }
+            else
+            {
+                if (m_asReloadSound)
+                    m_asReloadSound.Stop();
+            }
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (m_camMain == null) return;
+
+        if (!m_tmHudBullets && GameManager.s_cInstance != null)
+        {
+            m_tmHudBullets = GameManager.s_cInstance.HudBullets;
+        }
+
+        if (m_cMouseLook && m_tmHudBullets)
+            m_tmHudBullets.text = $"{m_fBulletsIHave} - {m_fBulletsInTheGun}";
+
+        DrawCrosshair();
+    }
+
+    private void DrawCrosshair()
+    {
+        GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, m_fFadeoutValue);
+        if (!m_bIsAimingControlled)
+        {
+            GUI.DrawTexture(new Rect(ToScreenVec2(m_vLeftPosCrosshair).x + ToScreenX(-m_vExpandValuesCrosshair.x) + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vLeftPosCrosshair).y, ToScreenVec2(m_vSizeCrosshairHorizontal).x, ToScreenVec2(m_vSizeCrosshairHorizontal).y), m_texVerticalCrosshair);
+            GUI.DrawTexture(new Rect(ToScreenVec2(m_vRightPosCrosshair).x + ToScreenX(m_vExpandValuesCrosshair.x) + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vRightPosCrosshair).y, ToScreenVec2(m_vSizeCrosshairHorizontal).x, ToScreenVec2(m_vSizeCrosshairHorizontal).y), m_texVerticalCrosshair);
+
+            GUI.DrawTexture(new Rect(ToScreenVec2(m_vTopPosCrosshair).x + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vTopPosCrosshair).y + ToScreenY(-m_vExpandValuesCrosshair.y), ToScreenVec2(m_vSizeCrosshairVertical).x, ToScreenVec2(m_vSizeCrosshairVertical).y), m_texHorizontalCrosshair);
+            GUI.DrawTexture(new Rect(ToScreenVec2(m_vBottomPosCrosshair).x + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vBottomPosCrosshair).y + ToScreenY(m_vExpandValuesCrosshair.y), ToScreenVec2(m_vSizeCrosshairVertical).x, ToScreenVec2(m_vSizeCrosshairVertical).y), m_texHorizontalCrosshair);
+        }
+    }
+
+    private float ToScreenX(float _fVal) => Screen.width * _fVal / 100f;
+    private float ToScreenY(float _fVal) => Screen.height * _fVal / 100f;
+    private Vector2 ToScreenVec2(Vector2 _vVal) => new Vector2(Screen.width * _vVal.x / 100f, Screen.height * _vVal.y / 100f);
+
+    private void UpdateAnimatorParameters()
+    {
+        if (m_animHands && m_cPlayerMovement)
+        {
+            m_bIsReloading = m_animHands.GetCurrentAnimatorStateInfo(0).IsName(m_strReloadAnimationName);
+
+            m_animHands.SetFloat("walkSpeed", m_cPlayerMovement.CurrentSpeed);
+            m_animHands.SetBool("aiming", m_bIsAimingControlled);
+            m_animHands.SetInteger("maxSpeed", m_cPlayerMovement.MaxSpeed);
+        }
+    }
 
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawCube(this.transform.position, Vector2.one);
+        Gizmos.DrawCube(transform.position, Vector2.one);
     }
 }

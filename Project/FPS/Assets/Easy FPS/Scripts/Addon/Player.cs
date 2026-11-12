@@ -1,47 +1,71 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class Player : MonoBehaviour
 {
     [Header("Player Settings")]
-    public bool isPlayer = true;
-    [Tooltip("카메라가 없을 때(NPC) 플레이어의 Forward를 기준으로 키보드 입력에 맞춰 함께 이동할지 여부")]
-    public bool syncMovementWithPlayer = true;
+    [FormerlySerializedAs("isPlayer")]
+    public bool m_bIsPlayer = true;
 
-    [SerializeField] Transform viewPivot;
-    [SerializeField] GameObject bulletSpawnPlace;
+    [Tooltip("카메라가 없을 때(NPC) 플레이어의 Forward를 기준으로 키보드 입력에 맞춰 함께 이동할지 여부")]
+    [FormerlySerializedAs("syncMovementWithPlayer")]
+    public bool m_bSyncMovementWithPlayer = true;
+
+    [SerializeField, FormerlySerializedAs("viewPivot")]
+    private Transform m_trViewPivot;
+
+    [SerializeField, FormerlySerializedAs("bulletSpawnPlace")]
+    private GameObject m_objBulletSpawnPlace;
 
     [Header("Weapon Management (Runtime Weapon Pool)")]
     [Tooltip("런타임에 생성하여 풀(Pool)로 등록할 무기 프리팹 목록 (Resources 폴더 기준)")]
-    public List<string> weaponPrefabNames = new List<string> { "NewGun_semi", "NewGun_auto" };
+    [FormerlySerializedAs("weaponPrefabNames")]
+    public List<string> m_listWeaponPrefabNames = new List<string> { "NewGun_semi", "NewGun_auto" };
+
     [Tooltip("런타임에 생성/등록되어 SetActive로 제어되는 무기 인스턴스 풀")]
-    [SerializeField] private List<GunScript> weaponPool = new List<GunScript>();
-    [SerializeField] private int currentWeaponIndex = 0;
+    [SerializeField, FormerlySerializedAs("weaponPool")]
+    private List<GunScript> m_listWeaponPool = new List<GunScript>();
 
-    MouseLookScript m_cMouseLockScript;
-    PlayerMovementScript m_cPlayerMovementScript;
-    [SerializeField] GunScript gun;
-    [SerializeField] AudioSource hitMarker;
+    [SerializeField, FormerlySerializedAs("currentWeaponIndex")]
+    private int m_nCurrentWeaponIndex = 0;
 
-    public GunInventory gunInventory;
+    private MouseLookScript m_cMouseLook;
+    private PlayerMovementScript m_cPlayerMovement;
 
-    public MouseLookScript Mls => m_cMouseLockScript;
-    public PlayerMovementScript PmS => m_cPlayerMovementScript;
-    public GunScript Gun => gun;
-    public AudioSource HitMarker => hitMarker;
-    public Transform ViewPivot => viewPivot ? viewPivot : this.transform;
-    public GameObject BulletSpawnPlace => bulletSpawnPlace;
-    public int CurrentWeaponIndex => currentWeaponIndex;
-    public IReadOnlyList<GunScript> Weapons => weaponPool;
+    [SerializeField, FormerlySerializedAs("gun")]
+    private GunScript m_cCurrentGun;
+
+    [SerializeField, FormerlySerializedAs("hitMarker")]
+    private AudioSource m_asHitMarker;
+
+    [FormerlySerializedAs("gunInventory")]
+    public GunInventory m_cGunInventory;
+
+    private bool m_bIsInitGunScript = false;
+    private bool m_bIsInitialized = false;
+
+    private Transform m_trCurrentCamera;
+    private Camera m_camSecond;
+
+    // ==================== 프로퍼티 ====================
+    public bool IsPlayer
+    {
+        get => m_bIsPlayer;
+        set => m_bIsPlayer = value;
+    }
+
+    public MouseLookScript Mls => m_cMouseLook;
+    public PlayerMovementScript PmS => m_cPlayerMovement;
+    public GunScript Gun => m_cCurrentGun;
+    public AudioSource HitMarker => m_asHitMarker;
+    public Transform ViewPivot => m_trViewPivot ? m_trViewPivot : this.transform;
+    public GameObject BulletSpawnPlace => m_objBulletSpawnPlace;
+    public int CurrentWeaponIndex => m_nCurrentWeaponIndex;
+    public IReadOnlyList<GunScript> Weapons => m_listWeaponPool;
 
     // NPC 또는 컨트롤러가 조준하고 있는 월드 목표 지점
     public Vector3? AimTargetPosition { get; set; }
-
-    bool isInitGunScript = false;
-    bool isInitialized = false;
-
-    Transform trCurrentCamera;
-    Camera currentSecondCamera;
 
     void Awake()
     {
@@ -53,70 +77,70 @@ public class Player : MonoBehaviour
     /// </summary>
     public void EnsureComponents()
     {
-        if (!m_cMouseLockScript)
-            m_cMouseLockScript = this.GetComponent<MouseLookScript>();
-        if (!m_cPlayerMovementScript)
-            m_cPlayerMovementScript = this.GetComponent<PlayerMovementScript>();
-        if (!gunInventory)
-            gunInventory = this.GetComponent<GunInventory>();
+        if (!m_cMouseLook)
+            m_cMouseLook = this.GetComponent<MouseLookScript>();
+        if (!m_cPlayerMovement)
+            m_cPlayerMovement = this.GetComponent<PlayerMovementScript>();
+        if (!m_cGunInventory)
+            m_cGunInventory = this.GetComponent<GunInventory>();
 
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.syncMovementWithPlayer = syncMovementWithPlayer;
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.m_bSyncMovementWithPlayer = m_bSyncMovementWithPlayer;
 
-        if (!viewPivot)
+        if (!m_trViewPivot)
         {
-            Transform foundPivot = transform.Find("ViewPivot");
-            if (foundPivot) viewPivot = foundPivot;
-            else viewPivot = this.transform;
+            Transform trFoundPivot = transform.Find("ViewPivot");
+            if (trFoundPivot) m_trViewPivot = trFoundPivot;
+            else m_trViewPivot = this.transform;
         }
 
-        if (!bulletSpawnPlace)
+        if (!m_objBulletSpawnPlace)
         {
-            Transform foundBulletSpawn = transform.Find("BulletSpawn");
-            if (foundBulletSpawn) bulletSpawnPlace = foundBulletSpawn.gameObject;
+            Transform trFoundBulletSpawn = transform.Find("BulletSpawn");
+            if (trFoundBulletSpawn) m_objBulletSpawnPlace = trFoundBulletSpawn.gameObject;
         }
     }
 
     void OnValidate()
     {
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.syncMovementWithPlayer = syncMovementWithPlayer;
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.m_bSyncMovementWithPlayer = m_bSyncMovementWithPlayer;
     }
 
     void Update()
     {
-        if (isInitGunScript && gun && gun.gameObject.activeInHierarchy)
-            gun.UpdateProcess();
+        if (m_bIsInitGunScript && m_cCurrentGun && m_cCurrentGun.gameObject.activeInHierarchy)
+            m_cCurrentGun.UpdateProcess();
     }
 
     private void FixedUpdate()
     {
-        if (isInitGunScript && gun && gun.gameObject.activeInHierarchy)
-            gun.FixedUpdateProcess();
+        if (m_bIsInitGunScript && m_cCurrentGun && m_cCurrentGun.gameObject.activeInHierarchy)
+            m_cCurrentGun.FixedUpdateProcess();
     }
 
-    public void Initialize(Transform trCamera, Camera secsecond)
+    public void Initialize(Transform _trCamera, Camera _camSecond)
     {
         EnsureComponents();
 
-        trCurrentCamera = trCamera;
-        currentSecondCamera = secsecond;
+        m_trCurrentCamera = _trCamera;
+        m_camSecond = _camSecond;
 
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.syncMovementWithPlayer = syncMovementWithPlayer;
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.m_bSyncMovementWithPlayer = m_bSyncMovementWithPlayer;
 
-        if (isPlayer && !bulletSpawnPlace && GameManager.instance && GameManager.instance.BulletSpawnPlace)
+        if (m_bIsPlayer && !m_objBulletSpawnPlace && GameManager.s_cInstance && GameManager.s_cInstance.BulletSpawnPlace)
         {
-            bulletSpawnPlace = GameManager.instance.BulletSpawnPlace;
+            m_objBulletSpawnPlace = GameManager.s_cInstance.BulletSpawnPlace;
         }
 
         // 무기들을 Player(카메라 또는 ViewPivot)의 자식으로 초기화 및 풀링
         InitializeWeapons();
 
-        if (gunInventory)
-            gunInventory.Initialize();
+        if (m_cGunInventory)
+            m_cGunInventory.Initialize();
 
-        isInitialized = true;
+        m_bIsInitialized = true;
     }
 
     /// <summary>
@@ -126,239 +150,239 @@ public class Player : MonoBehaviour
     /// </summary>
     private void InitializeWeapons()
     {
-        Transform weaponParent = (isPlayer && trCurrentCamera != null) ? trCurrentCamera : ViewPivot;
+        Transform trWeaponParent = (m_bIsPlayer && m_trCurrentCamera != null) ? m_trCurrentCamera : ViewPivot;
 
         // GunInventory에 무기 목록이 지정되어 있다면 우선 동기화
-        if (gunInventory != null && gunInventory.gunsIHave != null && gunInventory.gunsIHave.Count > 0)
+        if (m_cGunInventory != null && m_cGunInventory.GunsIHave != null && m_cGunInventory.GunsIHave.Count > 0)
         {
-            weaponPrefabNames = new List<string>(gunInventory.gunsIHave);
+            m_listWeaponPrefabNames = new List<string>(m_cGunInventory.GunsIHave);
         }
 
         // 1. 기존 풀에서 유효하지 않은 참조 제거
-        weaponPool.RemoveAll(w => w == null);
+        m_listWeaponPool.RemoveAll(w => w == null);
 
-        // 2. 프리팹에 미리 무기가 박혀있지 않은 경우(기본 권장 사항: 프리팹 경량화),
-        //    weaponPrefabNames 목록에 있는 모든 무기들을 런타임에 1:1로 생성하여 풀에 등록
-        if (weaponPool.Count == 0 && weaponPrefabNames != null && weaponPrefabNames.Count > 0)
+        // 2. 프리팹에 미리 무기가 박혀있지 않은 경우,
+        //    m_listWeaponPrefabNames 목록에 있는 모든 무기들을 런타임에 1:1로 생성하여 풀에 등록
+        if (m_listWeaponPool.Count == 0 && m_listWeaponPrefabNames != null && m_listWeaponPrefabNames.Count > 0)
         {
-            for (int i = 0; i < weaponPrefabNames.Count; i++)
+            for (int i = 0; i < m_listWeaponPrefabNames.Count; i++)
             {
-                string prefabName = weaponPrefabNames[i];
-                if (string.IsNullOrEmpty(prefabName)) continue;
+                string strPrefabName = m_listWeaponPrefabNames[i];
+                if (string.IsNullOrEmpty(strPrefabName)) continue;
 
-                GameObject res = Resources.Load<GameObject>(prefabName);
-                if (res != null)
+                GameObject prefabWeapon = Resources.Load<GameObject>(strPrefabName);
+                if (prefabWeapon != null)
                 {
-                    GameObject weaponObj = Instantiate(res, weaponParent);
-                    weaponObj.name = $"{prefabName}_{gameObject.name}_slot{i}";
-                    weaponObj.transform.localPosition = Vector3.zero;
-                    weaponObj.transform.localRotation = Quaternion.identity;
+                    GameObject objWeapon = Instantiate(prefabWeapon, trWeaponParent);
+                    objWeapon.name = $"{strPrefabName}_{gameObject.name}_slot{i}";
+                    objWeapon.transform.localPosition = Vector3.zero;
+                    objWeapon.transform.localRotation = Quaternion.identity;
 
-                    GunScript gs = weaponObj.GetComponent<GunScript>();
-                    if (gs != null)
+                    GunScript cGun = objWeapon.GetComponent<GunScript>();
+                    if (cGun != null)
                     {
-                        weaponPool.Add(gs);
+                        m_listWeaponPool.Add(cGun);
                     }
-                    weaponObj.SetActive(false);
-                    Debug.LogWarning($"[{gameObject.name}] Resources에서 무기 '{weaponObj.name}' 로드 성공.");
+                    objWeapon.SetActive(false);
                 }
                 else
                 {
-                    Debug.LogWarning($"[{gameObject.name}] Resources에서 무기 '{prefabName}'을(를) 로드할 수 없습니다.");
+                    Debug.LogWarning($"[{gameObject.name}] Resources에서 무기 '{strPrefabName}'을(를) 로드할 수 없습니다.");
                 }
             }
         }
         // 인스펙터/프리팹에 이미 일부 자식 무기가 등록되어 있는 경우 부족한 슬롯만큼 추가 생성
-        else if (weaponPrefabNames != null && weaponPool.Count < weaponPrefabNames.Count)
+        else if (m_listWeaponPrefabNames != null && m_listWeaponPool.Count < m_listWeaponPrefabNames.Count)
         {
-            int startIndex = weaponPool.Count;
-            for (int i = startIndex; i < weaponPrefabNames.Count; i++)
+            int nStartIndex = m_listWeaponPool.Count;
+            for (int i = nStartIndex; i < m_listWeaponPrefabNames.Count; i++)
             {
-                string prefabName = weaponPrefabNames[i];
-                if (string.IsNullOrEmpty(prefabName)) continue;
+                string strPrefabName = m_listWeaponPrefabNames[i];
+                if (string.IsNullOrEmpty(strPrefabName)) continue;
 
-                GameObject res = Resources.Load<GameObject>(prefabName);
-                if (res != null)
+                GameObject prefabWeapon = Resources.Load<GameObject>(strPrefabName);
+                if (prefabWeapon != null)
                 {
-                    GameObject weaponObj = Instantiate(res, weaponParent);
-                    weaponObj.name = $"{prefabName}_{gameObject.name}_slot{i}";
-                    weaponObj.transform.localPosition = Vector3.zero;
-                    weaponObj.transform.localRotation = Quaternion.identity;
+                    GameObject objWeapon = Instantiate(prefabWeapon, trWeaponParent);
+                    objWeapon.name = $"{strPrefabName}_{gameObject.name}_slot{i}";
+                    objWeapon.transform.localPosition = Vector3.zero;
+                    objWeapon.transform.localRotation = Quaternion.identity;
 
-                    GunScript gs = weaponObj.GetComponent<GunScript>();
-                    if (gs != null)
+                    GunScript cGun = objWeapon.GetComponent<GunScript>();
+                    if (cGun != null)
                     {
-                        weaponPool.Add(gs);
+                        m_listWeaponPool.Add(cGun);
                     }
-                    weaponObj.SetActive(false);
+                    objWeapon.SetActive(false);
                 }
             }
         }
 
         // 3. 풀의 모든 무기에 Player 의존성 주입 및 부모 계층 연결
-        Transform pivotToUse = (trCurrentCamera != null) ? trCurrentCamera : ViewPivot;
-        GameObject spawnToUse = bulletSpawnPlace;
-        if (isPlayer && !spawnToUse && GameManager.instance && GameManager.instance.BulletSpawnPlace)
-            spawnToUse = GameManager.instance.BulletSpawnPlace;
+        Transform trPivotToUse = (m_trCurrentCamera != null) ? m_trCurrentCamera : ViewPivot;
+        GameObject objSpawnToUse = m_objBulletSpawnPlace;
+        if (m_bIsPlayer && !objSpawnToUse && GameManager.s_cInstance && GameManager.s_cInstance.BulletSpawnPlace)
+            objSpawnToUse = GameManager.s_cInstance.BulletSpawnPlace;
 
-        for (int i = 0; i < weaponPool.Count; i++)
+        TextMesh tmHudBullets = (m_bIsPlayer && GameManager.s_cInstance != null) ? GameManager.s_cInstance.HudBullets : null;
+
+        for (int i = 0; i < m_listWeaponPool.Count; i++)
         {
-            GunScript gs = weaponPool[i];
-            if (gs == null) continue;
+            GunScript cGun = m_listWeaponPool[i];
+            if (cGun == null) continue;
 
-            if (gs.transform.parent != weaponParent)
+            if (cGun.transform.parent != trWeaponParent)
             {
-                gs.transform.SetParent(weaponParent, false);
+                cGun.transform.SetParent(trWeaponParent, false);
             }
 
-            Transform foundMarker = gs.transform.Find("hitMarkerSound");
-            AudioSource marker = foundMarker ? foundMarker.GetComponent<AudioSource>() : hitMarker;
+            Transform trFoundMarker = cGun.transform.Find("hitMarkerSound");
+            AudioSource asMarker = trFoundMarker ? trFoundMarker.GetComponent<AudioSource>() : m_asHitMarker;
 
-            gs.Initialize(this.transform, m_cMouseLockScript, pivotToUse, currentSecondCamera, spawnToUse, marker);
+            cGun.Initialize(this.transform, m_cMouseLook, trPivotToUse, m_camSecond, objSpawnToUse, asMarker, tmHudBullets);
         }
 
-        Debug.Log($"[{gameObject.name}] 런타임 무기 풀 초기화 완료: 총 {weaponPool.Count}개 무기 준비됨");
-
         // 4. 0번 슬롯(기본 무기)만 활성화하고 나머지는 비활성화
-        if (weaponPool.Count > 0)
+        if (m_listWeaponPool.Count > 0)
         {
-            int startSlot = Mathf.Clamp(currentWeaponIndex, 0, weaponPool.Count - 1);
-            EquipWeapon(startSlot, true);
+            int nStartSlot = Mathf.Clamp(m_nCurrentWeaponIndex, 0, m_listWeaponPool.Count - 1);
+            EquipWeapon(nStartSlot, true);
         }
     }
 
     /// <summary>
     /// 무기 풀(Pool)에서 지정된 인덱스의 무기만 활성화(SetActive(true))하고 나머지는 비활성화(SetActive(false))합니다.
     /// </summary>
-    private void EquipWeapon(int index, bool force = false)
+    private void EquipWeapon(int _nIndex, bool _bForce = false)
     {
-        if (weaponPool == null || weaponPool.Count == 0) return;
-        if (index < 0 || index >= weaponPool.Count) return;
-        if (!force && currentWeaponIndex == index && gun != null && gun.gameObject.activeSelf) return;
+        if (m_listWeaponPool == null || m_listWeaponPool.Count == 0) return;
+        if (_nIndex < 0 || _nIndex >= m_listWeaponPool.Count) return;
+        if (!_bForce && m_nCurrentWeaponIndex == _nIndex && m_cCurrentGun != null && m_cCurrentGun.gameObject.activeSelf) return;
 
-        if (!force && gunInventory != null && gunInventory.weaponChanging != null)
+        if (!_bForce && m_cGunInventory != null && m_cGunInventory.WeaponChanging != null)
         {
-            gunInventory.weaponChanging.Play();
+            m_cGunInventory.WeaponChanging.Play();
         }
 
         // 풀(Pool)에 있는 무기들을 순회하며 선택된 인덱스만 SetActive(true)
-        for (int i = 0; i < weaponPool.Count; i++)
+        for (int i = 0; i < m_listWeaponPool.Count; i++)
         {
-            if (weaponPool[i] != null)
+            if (m_listWeaponPool[i] != null)
             {
-                weaponPool[i].gameObject.SetActive(i == index);
+                m_listWeaponPool[i].gameObject.SetActive(i == _nIndex);
             }
         }
 
-        currentWeaponIndex = index;
-        gun = weaponPool[currentWeaponIndex];
+        m_nCurrentWeaponIndex = _nIndex;
+        m_cCurrentGun = m_listWeaponPool[m_nCurrentWeaponIndex];
 
-        if (gun != null)
+        if (m_cCurrentGun != null)
         {
-            Transform foundMarker = gun.transform.Find("hitMarkerSound");
-            if (foundMarker)
-                hitMarker = foundMarker.GetComponent<AudioSource>();
+            Transform trFoundMarker = m_cCurrentGun.transform.Find("hitMarkerSound");
+            if (trFoundMarker)
+                m_asHitMarker = trFoundMarker.GetComponent<AudioSource>();
 
-            Transform pivotToUse = (trCurrentCamera != null) ? trCurrentCamera : ViewPivot;
-            GameObject spawnToUse = bulletSpawnPlace;
-            if (isPlayer && !spawnToUse && GameManager.instance && GameManager.instance.BulletSpawnPlace)
-                spawnToUse = GameManager.instance.BulletSpawnPlace;
+            Transform trPivotToUse = (m_trCurrentCamera != null) ? m_trCurrentCamera : ViewPivot;
+            GameObject objSpawnToUse = m_objBulletSpawnPlace;
+            if (m_bIsPlayer && !objSpawnToUse && GameManager.s_cInstance && GameManager.s_cInstance.BulletSpawnPlace)
+                objSpawnToUse = GameManager.s_cInstance.BulletSpawnPlace;
 
-            gun.Initialize(this.transform, m_cMouseLockScript, pivotToUse, currentSecondCamera, spawnToUse, hitMarker);
-            isInitGunScript = true;
+            TextMesh tmHudBullets = (m_bIsPlayer && GameManager.s_cInstance != null) ? GameManager.s_cInstance.HudBullets : null;
+
+            m_cCurrentGun.Initialize(this.transform, m_cMouseLook, trPivotToUse, m_camSecond, objSpawnToUse, m_asHitMarker, tmHudBullets);
+            m_bIsInitGunScript = true;
         }
         else
         {
-            isInitGunScript = false;
+            m_bIsInitGunScript = false;
         }
 
         // HUD 아이콘 표시용 GunInventory 상태 동기화
-        if (gunInventory != null)
+        if (m_cGunInventory != null)
         {
-            gunInventory.SyncWeaponState(currentWeaponIndex, gun != null ? gun.gameObject : null);
+            m_cGunInventory.SyncWeaponState(m_nCurrentWeaponIndex, m_cCurrentGun != null ? m_cCurrentGun.gameObject : null);
         }
     }
 
-    public void GunChangeSetUpdate(Transform trMainCamera, Camera secondCamera)
+    public void GunChangeSetUpdate(Transform _trMainCamera, Camera _camSecond)
     {
-        trCurrentCamera = trMainCamera;
-        currentSecondCamera = secondCamera;
-        EquipWeapon(currentWeaponIndex, true);
+        m_trCurrentCamera = _trMainCamera;
+        m_camSecond = _camSecond;
+        EquipWeapon(m_nCurrentWeaponIndex, true);
     }
 
     // ==================== 마리오네트 제어 API ====================
 
-    public void Move(Vector2 inputDirection)
+    public void Move(Vector2 _vInputDirection)
     {
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.SetInputMove(inputDirection);
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.SetInputMove(_vInputDirection);
     }
 
-    public void MoveWorld(Vector3 worldDirection)
+    public void MoveWorld(Vector3 _vWorldDirection)
     {
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.SetWorldMove(worldDirection);
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.SetWorldMove(_vWorldDirection);
     }
 
-    public void LookAtTarget(Vector3 targetPosition)
+    public void LookAtTarget(Vector3 _vTargetPosition)
     {
-        AimTargetPosition = targetPosition;
+        AimTargetPosition = _vTargetPosition;
 
-        Vector3 targetDir = targetPosition - transform.position;
-        targetDir.y = 0; // 수평 회전
-        if (targetDir.sqrMagnitude > 0.001f)
+        Vector3 vTargetDir = _vTargetPosition - transform.position;
+        vTargetDir.y = 0f; // 수평 회전
+        if (vTargetDir.sqrMagnitude > 0.001f)
         {
-            Quaternion targetRot = Quaternion.LookRotation(targetDir, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 15f);
+            Quaternion qTargetRot = Quaternion.LookRotation(vTargetDir, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, qTargetRot, Time.deltaTime * 15f);
         }
     }
 
     public void Jump()
     {
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.DoJump();
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.DoJump();
     }
 
-    public void Crouch(bool enable)
+    public void Crouch(bool _bEnable)
     {
-        if (m_cPlayerMovementScript)
-            m_cPlayerMovementScript.DoCrouch(enable);
+        if (m_cPlayerMovement)
+            m_cPlayerMovement.DoCrouch(_bEnable);
     }
 
     public void Shoot()
     {
-        if (gun)
-            gun.TriggerShoot();
+        if (m_cCurrentGun)
+            m_cCurrentGun.TriggerShoot();
     }
 
-    public void Aim(bool enable)
+    public void Aim(bool _bEnable)
     {
-        if (gun)
-            gun.SetAiming(enable);
+        if (m_cCurrentGun)
+            m_cCurrentGun.SetAiming(_bEnable);
     }
 
     public void Reload()
     {
-        if (gun)
-            gun.TriggerReload();
+        if (m_cCurrentGun)
+            m_cCurrentGun.TriggerReload();
     }
 
     public void Melee()
     {
-        if (gun)
-            gun.TriggerMelee();
+        if (m_cCurrentGun)
+            m_cCurrentGun.TriggerMelee();
     }
 
-    public void SwitchWeapon(int weaponIndex)
+    public void SwitchWeapon(int _nWeaponIndex)
     {
-        EquipWeapon(weaponIndex, false);
+        EquipWeapon(_nWeaponIndex, false);
     }
 
     public void NextWeapon()
     {
-        if (weaponPool == null || weaponPool.Count == 0) return;
-        int next = (currentWeaponIndex + 1) % weaponPool.Count;
-        Debug.Log($"NextWepon:{next}");
-        EquipWeapon(next, false);
+        if (m_listWeaponPool == null || m_listWeaponPool.Count == 0) return;
+        int nNext = (m_nCurrentWeaponIndex + 1) % m_listWeaponPool.Count;
+        EquipWeapon(nNext, false);
     }
 }

@@ -1,349 +1,392 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using System.Collections;
-using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
-public class PlayerMovementScript : MonoBehaviour {
-	Rigidbody rb;
+public class PlayerMovementScript : MonoBehaviour
+{
+    private Rigidbody m_rbBody;
 
-	[Tooltip("Current players speed")]
-	public float currentSpeed;
-	[Tooltip("Force that moves player into jump")]
-	public float jumpForce = 500;
-	[Tooltip("Position of the camera inside the player")]
-	[HideInInspector]public Vector3 cameraPosition;
+    [Tooltip("Current players speed")]
+    [FormerlySerializedAs("currentSpeed")]
+    public float m_fCurrentSpeed;
 
-	[Header("Marionette / NPC Sync Settings")]
-	[Tooltip("카메라가 없을 때(NPC) 플레이어의 Forward를 기준으로 키보드 입력에 맞춰 함께 이동할지 여부")]
-	public bool syncMovementWithPlayer = true;
-	[Tooltip("기준으로 삼을 플레이어 Transform (비워두면 GameManager.instance.CurrentPlayer 참조)")]
-	public Transform referencePlayerTransform;
+    [Tooltip("Force that moves player into jump")]
+    [FormerlySerializedAs("jumpForce")]
+    public float m_fJumpForce = 500f;
 
-	private Player playerComponent;
+    [Tooltip("Position of the camera inside the player")]
+    [HideInInspector]
+    [FormerlySerializedAs("cameraPosition")]
+    public Vector3 m_vCameraPosition;
 
-	// 마리오네트 제어를 위한 입력 캐싱
-	private Vector2 currentInputMove;
-	private Vector3 currentWorldMove;
-	private bool hasWorldMove = false;
-	private bool isCrouching = false;
+    [Header("Marionette / NPC Sync Settings")]
+    [Tooltip("카메라가 없을 때(NPC) 플레이어의 Forward를 기준으로 키보드 입력에 맞춰 함께 이동할지 여부")]
+    [FormerlySerializedAs("syncMovementWithPlayer")]
+    public bool m_bSyncMovementWithPlayer = true;
 
-	/*
-	 * Getting the Players rigidbody component.
-	 * And grabbing the mainCamera from Players child transform.
-	 */
-	void Awake(){
-		rb = GetComponent<Rigidbody>();
-		playerComponent = GetComponent<Player>();
-		ignoreLayer = 1 << LayerMask.NameToLayer ("Player");
+    [Tooltip("기준으로 삼을 플레이어 Transform (비워두면 GameManager.s_cInstance.CurrentPlayer 참조)")]
+    [FormerlySerializedAs("referencePlayerTransform")]
+    public Transform m_trReferencePlayer;
 
-		if (!bulletSpawn)
-		{
-			Transform foundSpawn = transform.Find("BulletSpawn");
-			if (foundSpawn) bulletSpawn = foundSpawn;
-			else bulletSpawn = this.transform;
-		}
-	}
+    private Player m_cPlayer;
 
-    private void Initialize(Transform mianCamera, Transform _bulletSpawn)
+    // 마리오네트 제어를 위한 입력 캐싱
+    private Vector2 m_vCurrentInputMove;
+    private Vector3 m_vCurrentWorldMove;
+    private bool m_bHasWorldMove = false;
+    private bool m_bIsCrouching = false;
+
+    private Vector3 m_vSlowdownVelocity;
+    private Vector2 m_vHorizontalMovement;
+
+    [Tooltip("The maximum speed you want to achieve")]
+    [FormerlySerializedAs("maxSpeed")]
+    public int m_nMaxSpeed = 5;
+
+    [Tooltip("The higher the number the faster it will stop")]
+    [FormerlySerializedAs("deaccelerationSpeed")]
+    public float m_fDeaccelerationSpeed = 15.0f;
+
+    [Tooltip("Force that is applied when moving forward or backward")]
+    [FormerlySerializedAs("accelerationSpeed")]
+    public float m_fAccelerationSpeed = 50000.0f;
+
+    [Tooltip("Tells us weather the player is grounded or not.")]
+    [FormerlySerializedAs("grounded")]
+    public bool m_bIsGrounded;
+
+    [Header("Shooting Properties")]
+    private LayerMask m_maskIgnoreLayer;
+    private float m_fRayDetectorMeleeSpace = 0.15f;
+    private float m_fOffsetStart = 0.05f;
+
+    [Tooltip("Put BulletSpawn gameobject here, palce from where bullets are created.")]
+    [FormerlySerializedAs("bulletSpawn")]
+    public Transform m_trBulletSpawn;
+
+    [FormerlySerializedAs("been_to_meele_anim")]
+    public bool m_bHasTriggeredMeleeHit = false;
+
+    [Header("BloodForMelleAttaacks")]
+    [Tooltip("Put your particle blood effect here.")]
+    [FormerlySerializedAs("bloodEffect")]
+    public GameObject m_prefabBloodEffect;
+
+    [Header("Player SOUNDS")]
+    [Tooltip("Jump sound when player jumps.")]
+    [FormerlySerializedAs("_jumpSound")]
+    public AudioSource m_asJumpSound;
+
+    [Tooltip("Sound while player makes when successfully reloads weapon.")]
+    [FormerlySerializedAs("_freakingZombiesSound")]
+    public AudioSource m_asReloadVoiceSound;
+
+    [Tooltip("Sound Bullet makes when hits target.")]
+    [FormerlySerializedAs("_hitSound")]
+    public AudioSource m_asHitSound;
+
+    [Tooltip("Walk sound player makes.")]
+    [FormerlySerializedAs("_walkSound")]
+    public AudioSource m_asWalkSound;
+
+    [Tooltip("Run Sound player makes.")]
+    [FormerlySerializedAs("_runSound")]
+    public AudioSource m_asRunSound;
+
+    // ==================== 프로퍼티 ====================
+    public float CurrentSpeed
     {
-        rb = GetComponent<Rigidbody>();
-		playerComponent = GetComponent<Player>();
-		if (_bulletSpawn) bulletSpawn = _bulletSpawn;
-        ignoreLayer = 1 << LayerMask.NameToLayer("Player");
+        get => m_fCurrentSpeed;
+        set => m_fCurrentSpeed = value;
     }
 
-    private Vector3 slowdownV;
-	private Vector2 horizontalMovement;
+    public int MaxSpeed
+    {
+        get => m_nMaxSpeed;
+        set => m_nMaxSpeed = value;
+    }
 
-	/*
-	* Raycasting for meele attacks and input movement handling here.
-	*/
-	void FixedUpdate(){
-		RaycastForMeleeAttacks ();
+    public bool Grounded => m_bIsGrounded;
 
-		PlayerMovementLogic ();
-	}
+    void Awake()
+    {
+        m_rbBody = GetComponent<Rigidbody>();
+        m_cPlayer = GetComponent<Player>();
+        m_maskIgnoreLayer = 1 << LayerMask.NameToLayer("Player");
 
-	/*
-	* Accordingly to input adds force and if magnitude is bigger it will clamp it.
-	* If player leaves keys it will deaccelerate
-	*/
-	void PlayerMovementLogic(){
-		currentSpeed = rb.linearVelocity.magnitude;
-		horizontalMovement = new Vector2 (rb.linearVelocity.x, rb.linearVelocity.z);
-		if (horizontalMovement.magnitude > maxSpeed){
-			horizontalMovement = horizontalMovement.normalized;
-			horizontalMovement *= maxSpeed;    
-		}
-		rb.linearVelocity = new Vector3 (
-			horizontalMovement.x,
-			rb.linearVelocity.y,
-			horizontalMovement.y
-		);
-		if (grounded){
-			rb.linearVelocity = Vector3.SmoothDamp(rb.linearVelocity,
-				new Vector3(0,rb.linearVelocity.y,0),
-				ref slowdownV,
-				deaccelerationSpeed);
-		}
+        if (!m_trBulletSpawn)
+        {
+            Transform trFoundSpawn = transform.Find("BulletSpawn");
+            if (trFoundSpawn) m_trBulletSpawn = trFoundSpawn;
+            else m_trBulletSpawn = this.transform;
+        }
+    }
 
-		float hInput = currentInputMove.x;
-		float vInput = currentInputMove.y;
-		float forceMultiplier = grounded ? accelerationSpeed : (accelerationSpeed / 2f);
+    private void Initialize(Transform _trMainCamera, Transform _trBulletSpawn)
+    {
+        m_rbBody = GetComponent<Rigidbody>();
+        m_cPlayer = GetComponent<Player>();
+        if (_trBulletSpawn) m_trBulletSpawn = _trBulletSpawn;
+        m_maskIgnoreLayer = 1 << LayerMask.NameToLayer("Player");
+    }
 
-		if (hasWorldMove)
-		{
-			// [AI 컨트롤러 / 월드 방향 이동]
-			Vector3 moveDir = Vector3.ProjectOnPlane(currentWorldMove, Vector3.up).normalized;
-			rb.AddForce(moveDir * forceMultiplier * Time.deltaTime, ForceMode.Force);
+    void FixedUpdate()
+    {
+        RaycastForMeleeAttacks();
+        PlayerMovementLogic();
+    }
 
-			deaccelerationSpeed = (currentWorldMove.sqrMagnitude > 0.01f) ? 0.5f : 0.1f;
-		}
-		else
-		{
-			// [플레이어 컨트롤러 / 로컬 축 기준 이동]
-			rb.AddRelativeForce (hInput * forceMultiplier * Time.deltaTime, 0, vInput * forceMultiplier * Time.deltaTime);
+    void PlayerMovementLogic()
+    {
+        m_fCurrentSpeed = m_rbBody.linearVelocity.magnitude;
+        m_vHorizontalMovement = new Vector2(m_rbBody.linearVelocity.x, m_rbBody.linearVelocity.z);
+        if (m_vHorizontalMovement.magnitude > m_nMaxSpeed)
+        {
+            m_vHorizontalMovement = m_vHorizontalMovement.normalized;
+            m_vHorizontalMovement *= m_nMaxSpeed;
+        }
 
-			if (hInput != 0 || vInput != 0) {
-				deaccelerationSpeed = 0.5f;
-			} else {
-				deaccelerationSpeed = 0.1f;
-			}
-		}
-	}
+        m_rbBody.linearVelocity = new Vector3(
+            m_vHorizontalMovement.x,
+            m_rbBody.linearVelocity.y,
+            m_vHorizontalMovement.y
+        );
 
-	// ==================== 마리오네트 제어 API ====================
+        if (m_bIsGrounded)
+        {
+            m_rbBody.linearVelocity = Vector3.SmoothDamp(
+                m_rbBody.linearVelocity,
+                new Vector3(0, m_rbBody.linearVelocity.y, 0),
+                ref m_vSlowdownVelocity,
+                m_fDeaccelerationSpeed
+            );
+        }
 
-	public void SetInputMove(Vector2 moveInput)
-	{
-		hasWorldMove = false;
-		currentInputMove = moveInput;
-	}
+        float fHInput = m_vCurrentInputMove.x;
+        float fVInput = m_vCurrentInputMove.y;
+        float fForceMultiplier = m_bIsGrounded ? m_fAccelerationSpeed : (m_fAccelerationSpeed / 2f);
 
-	public void SetWorldMove(Vector3 worldDirection)
-	{
-		hasWorldMove = true;
-		currentWorldMove = worldDirection;
-		currentInputMove = new Vector2(worldDirection.x, worldDirection.z);
-	}
+        if (m_bHasWorldMove)
+        {
+            // [AI 컨트롤러 / 월드 방향 이동]
+            Vector3 vMoveDir = Vector3.ProjectOnPlane(m_vCurrentWorldMove, Vector3.up).normalized;
+            m_rbBody.AddForce(vMoveDir * fForceMultiplier * Time.deltaTime, ForceMode.Force);
 
-	public void DoJump()
-	{
-		if (grounded) {
-			rb.AddRelativeForce (Vector3.up * jumpForce);
-			if (_jumpSound)
-				_jumpSound.Play ();
-			if (_walkSound) _walkSound.Stop ();
-			if (_runSound) _runSound.Stop ();
-		}
-	}
+            m_fDeaccelerationSpeed = (m_vCurrentWorldMove.sqrMagnitude > 0.01f) ? 0.5f : 0.1f;
+        }
+        else
+        {
+            // [플레이어 컨트롤러 / 로컬 축 기준 이동]
+            m_rbBody.AddRelativeForce(fHInput * fForceMultiplier * Time.deltaTime, 0, fVInput * fForceMultiplier * Time.deltaTime);
 
-	public void DoCrouch(bool enable)
-	{
-		isCrouching = enable;
-	}
+            if (fHInput != 0 || fVInput != 0)
+            {
+                m_fDeaccelerationSpeed = 0.5f;
+            }
+            else
+            {
+                m_fDeaccelerationSpeed = 0.1f;
+            }
+        }
+    }
 
-	void Update(){
-		CrouchingProcess();
-		WalkingSound ();
-	}
+    // ==================== 마리오네트 제어 API ====================
 
-	void CrouchingProcess(){
-		if(isCrouching){
-			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,0.6f,1), Time.deltaTime * 15);
-		}
-		else{
-			transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1,1,1), Time.deltaTime * 15);
-		}
-	}
+    public void SetInputMove(Vector2 _vMoveInput)
+    {
+        m_bHasWorldMove = false;
+        m_vCurrentInputMove = _vMoveInput;
+    }
 
-	/*
-	* Checks if player is grounded and plays the sound accorindlgy to his speed
-	*/
-	void WalkingSound(){
-		if (_walkSound && _runSound) {
-			if (RayCastGrounded ()) {			
-				if (currentSpeed > 1) {
-					if (maxSpeed == 3) {
-						if (!_walkSound.isPlaying) {
-							_walkSound.Play ();
-							_runSound.Stop ();
-						}					
-					} else if (maxSpeed == 5) {
-						if (!_runSound.isPlaying) {
-							_walkSound.Stop ();
-							_runSound.Play ();
-						}
-					}
-				} else {
-					_walkSound.Stop ();
-					_runSound.Stop ();
-				}
-			} else {
-				_walkSound.Stop ();
-				_runSound.Stop ();
-			}
-		}
-	}
+    public void SetWorldMove(Vector3 _vWorldDirection)
+    {
+        m_bHasWorldMove = true;
+        m_vCurrentWorldMove = _vWorldDirection;
+        m_vCurrentInputMove = new Vector2(_vWorldDirection.x, _vWorldDirection.z);
+    }
 
-	private bool RayCastGrounded(){
-		RaycastHit groundedInfo;
-		if(Physics.Raycast(transform.position, transform.up *-1f, out groundedInfo, 1, ~ignoreLayer)){
-			Debug.DrawRay (transform.position, transform.up * -1f, Color.red, 0.0f);
-			if(groundedInfo.transform != null){
-				return true;
-			}
-			else{
-				return false;
-			}
-		}
+    public void DoJump()
+    {
+        if (m_bIsGrounded)
+        {
+            m_rbBody.AddRelativeForce(Vector3.up * m_fJumpForce);
+            if (m_asJumpSound) m_asJumpSound.Play();
+            if (m_asWalkSound) m_asWalkSound.Stop();
+            if (m_asRunSound) m_asRunSound.Stop();
+        }
+    }
 
-		return false;
-	}
+    public void DoCrouch(bool _bEnable)
+    {
+        m_bIsCrouching = _bEnable;
+    }
 
-	[Tooltip("The maximum speed you want to achieve")]
-	public int maxSpeed = 5;
-	[Tooltip("The higher the number the faster it will stop")]
-	public float deaccelerationSpeed = 15.0f;
+    void Update()
+    {
+        CrouchingProcess();
+        WalkingSound();
+    }
 
+    void CrouchingProcess()
+    {
+        if (m_bIsCrouching)
+        {
+            transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1, 0.6f, 1), Time.deltaTime * 15f);
+        }
+        else
+        {
+            transform.localScale = Vector3.Lerp(transform.localScale, new Vector3(1, 1, 1), Time.deltaTime * 15f);
+        }
+    }
 
-	[Tooltip("Force that is applied when moving forward or backward")]
-	public float accelerationSpeed = 50000.0f;
+    void WalkingSound()
+    {
+        if (m_asWalkSound && m_asRunSound)
+        {
+            if (RayCastGrounded())
+            {
+                if (m_fCurrentSpeed > 1f)
+                {
+                    if (m_nMaxSpeed == 3)
+                    {
+                        if (!m_asWalkSound.isPlaying)
+                        {
+                            m_asWalkSound.Play();
+                            m_asRunSound.Stop();
+                        }
+                    }
+                    else if (m_nMaxSpeed == 5)
+                    {
+                        if (!m_asRunSound.isPlaying)
+                        {
+                            m_asWalkSound.Stop();
+                            m_asRunSound.Play();
+                        }
+                    }
+                }
+                else
+                {
+                    m_asWalkSound.Stop();
+                    m_asRunSound.Stop();
+                }
+            }
+            else
+            {
+                m_asWalkSound.Stop();
+                m_asRunSound.Stop();
+            }
+        }
+    }
 
+    private bool RayCastGrounded()
+    {
+        RaycastHit sGroundedInfo;
+        if (Physics.Raycast(transform.position, transform.up * -1f, out sGroundedInfo, 1f, ~m_maskIgnoreLayer))
+        {
+            Debug.DrawRay(transform.position, transform.up * -1f, Color.red, 0.0f);
+            if (sGroundedInfo.transform != null)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
-	[Tooltip("Tells us weather the player is grounded or not.")]
-	public bool grounded;
+    void OnCollisionStay(Collision _cOther)
+    {
+        foreach (ContactPoint sContact in _cOther.contacts)
+        {
+            if (Vector2.Angle(sContact.normal, Vector3.up) < 60f)
+            {
+                m_bIsGrounded = true;
+            }
+        }
+    }
 
-	void OnCollisionStay(Collision other){
-		foreach(ContactPoint contact in other.contacts){
-			if(Vector2.Angle(contact.normal,Vector3.up) < 60){
-				grounded = true;
-			}
-		}
-	}
+    void OnCollisionExit()
+    {
+        m_bIsGrounded = false;
+    }
 
-	void OnCollisionExit ()
-	{
-		grounded = false;
-	}
+    /// <summary>
+    /// 근접 공격 상태일 때만 9개의 판정 Ray를 생성하여 충돌을 검사합니다.
+    /// </summary>
+    private void RaycastForMeleeAttacks()
+    {
+        if (m_trBulletSpawn == null || m_cPlayer == null) return;
 
+        GunScript cGun = m_cPlayer.Gun;
+        if (cGun == null) return;
 
-	RaycastHit hitInfo;
-	private float meleeAttack_cooldown;
-	private string currentWeapo;
-	[Tooltip("Put 'Player' layer here")]
-	[Header("Shooting Properties")]
-	private LayerMask ignoreLayer;
-	Ray ray1, ray2, ray3, ray4, ray5, ray6, ray7, ray8, ray9;
-	private float rayDetectorMeeleSpace = 0.15f;
-	private float offsetStart = 0.05f;
-	[Tooltip("Put BulletSpawn gameobject here, palce from where bullets are created.")]
-	public Transform bulletSpawn;
+        if (!cGun.IsMeleeAttack)
+        {
+            m_bHasTriggeredMeleeHit = false;
+            return;
+        }
 
-	public bool been_to_meele_anim = false;
-	private void RaycastForMeleeAttacks(){
-		if (bulletSpawn == null) return;
+        if (m_bHasTriggeredMeleeHit) return;
 
-		if (meleeAttack_cooldown > -5) {
-			meleeAttack_cooldown -= 1 * Time.deltaTime;
-		}
+        m_bHasTriggeredMeleeHit = true;
+        StartCoroutine(MeleeAttackWeaponHit(cGun));
+    }
 
-		GunScript gs = playerComponent ? playerComponent.Gun : null;
-		if (gs != null) {
-			currentWeapo = "gun";
-		}
+    private IEnumerator MeleeAttackWeaponHit(GunScript _cGun)
+    {
+        Vector3 vOrigin = m_trBulletSpawn.position;
+        Vector3 vRight = m_trBulletSpawn.right;
+        Vector3 vUp = m_trBulletSpawn.up;
+        Vector3 vForward = m_trBulletSpawn.forward;
 
-		//middle row
-		ray1 = new Ray (bulletSpawn.position + (bulletSpawn.right*offsetStart), bulletSpawn.forward + (bulletSpawn.right * rayDetectorMeeleSpace));
-		ray2 = new Ray (bulletSpawn.position - (bulletSpawn.right*offsetStart), bulletSpawn.forward - (bulletSpawn.right * rayDetectorMeeleSpace));
-		ray3 = new Ray (bulletSpawn.position, bulletSpawn.forward);
-		//upper row
-		ray4 = new Ray (bulletSpawn.position + (bulletSpawn.right*offsetStart) + (bulletSpawn.up*offsetStart), bulletSpawn.forward + (bulletSpawn.right * rayDetectorMeeleSpace) + (bulletSpawn.up * rayDetectorMeeleSpace));
-		ray5 = new Ray (bulletSpawn.position - (bulletSpawn.right*offsetStart) + (bulletSpawn.up*offsetStart), bulletSpawn.forward - (bulletSpawn.right * rayDetectorMeeleSpace) + (bulletSpawn.up * rayDetectorMeeleSpace));
-		ray6 = new Ray (bulletSpawn.position + (bulletSpawn.up*offsetStart), bulletSpawn.forward + (bulletSpawn.up * rayDetectorMeeleSpace));
-		//bottom row
-		ray7 = new Ray (bulletSpawn.position + (bulletSpawn.right*offsetStart) - (bulletSpawn.up*offsetStart), bulletSpawn.forward + (bulletSpawn.right * rayDetectorMeeleSpace) - (bulletSpawn.up * rayDetectorMeeleSpace));
-		ray8 = new Ray (bulletSpawn.position - (bulletSpawn.right*offsetStart) - (bulletSpawn.up*offsetStart), bulletSpawn.forward - (bulletSpawn.right * rayDetectorMeeleSpace) - (bulletSpawn.up * rayDetectorMeeleSpace));
-		ray9 = new Ray (bulletSpawn.position -(bulletSpawn.up*offsetStart), bulletSpawn.forward - (bulletSpawn.up * rayDetectorMeeleSpace));
+        Ray[] arrRays = new Ray[9]
+        {
+            // middle row
+            new Ray(vOrigin + (vRight * m_fOffsetStart), vForward + (vRight * m_fRayDetectorMeleeSpace)),
+            new Ray(vOrigin - (vRight * m_fOffsetStart), vForward - (vRight * m_fRayDetectorMeleeSpace)),
+            new Ray(vOrigin, vForward),
+            // upper row
+            new Ray(vOrigin + (vRight * m_fOffsetStart) + (vUp * m_fOffsetStart), vForward + (vRight * m_fRayDetectorMeleeSpace) + (vUp * m_fRayDetectorMeleeSpace)),
+            new Ray(vOrigin - (vRight * m_fOffsetStart) + (vUp * m_fOffsetStart), vForward - (vRight * m_fRayDetectorMeleeSpace) + (vUp * m_fRayDetectorMeleeSpace)),
+            new Ray(vOrigin + (vUp * m_fOffsetStart), vForward + (vUp * m_fRayDetectorMeleeSpace)),
+            // bottom row
+            new Ray(vOrigin + (vRight * m_fOffsetStart) - (vUp * m_fOffsetStart), vForward + (vRight * m_fRayDetectorMeleeSpace) - (vUp * m_fRayDetectorMeleeSpace)),
+            new Ray(vOrigin - (vRight * m_fOffsetStart) - (vUp * m_fOffsetStart), vForward - (vRight * m_fRayDetectorMeleeSpace) - (vUp * m_fRayDetectorMeleeSpace)),
+            new Ray(vOrigin - (vUp * m_fOffsetStart), vForward - (vUp * m_fRayDetectorMeleeSpace))
+        };
 
-		Debug.DrawRay (ray1.origin, ray1.direction, Color.cyan);
-		Debug.DrawRay (ray2.origin, ray2.direction, Color.cyan);
-		Debug.DrawRay (ray3.origin, ray3.direction, Color.cyan);
-		Debug.DrawRay (ray4.origin, ray4.direction, Color.red);
-		Debug.DrawRay (ray5.origin, ray5.direction, Color.red);
-		Debug.DrawRay (ray6.origin, ray6.direction, Color.red);
-		Debug.DrawRay (ray7.origin, ray7.direction, Color.yellow);
-		Debug.DrawRay (ray8.origin, ray8.direction, Color.yellow);
-		Debug.DrawRay (ray9.origin, ray9.direction, Color.yellow);
+        RaycastHit sHitInfo;
+        for (int i = 0; i < arrRays.Length; i++)
+        {
+            if (Physics.Raycast(arrRays[i], out sHitInfo, 2f, ~m_maskIgnoreLayer))
+            {
+                if (sHitInfo.transform.CompareTag("Dummie"))
+                {
+                    InstantiateBlood(sHitInfo, _cGun);
+                    break;
+                }
+            }
+        }
 
-		if (gs != null) {
-			if (gs.meeleAttack == false) {
-				been_to_meele_anim = false;
-			}
-			if (gs.meeleAttack == true && been_to_meele_anim == false) {
-				been_to_meele_anim = true;
-				StartCoroutine ("MeeleAttackWeaponHit");
-			}
-		}
+        yield return new WaitForEndOfFrame();
+    }
 
-	}
+    private void InstantiateBlood(RaycastHit _sHitPos, GunScript _cGun)
+    {
+        if (_cGun != null)
+        {
+            _cGun.PlayHitMarkerSound();
+        }
 
-	IEnumerator MeeleAttackWeaponHit(){
-		if (Physics.Raycast (ray1, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray2, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray3, out hitInfo, 2f, ~ignoreLayer)
-			|| Physics.Raycast (ray4, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray5, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray6, out hitInfo, 2f, ~ignoreLayer)
-			|| Physics.Raycast (ray7, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray8, out hitInfo, 2f, ~ignoreLayer) || Physics.Raycast (ray9, out hitInfo, 2f, ~ignoreLayer)) {
-			if (hitInfo.transform.tag=="Dummie") {
-				Transform _other = hitInfo.transform.root.transform;
-				if (_other.transform.tag == "Dummie") {
-					print ("hit a dummie");
-				}
-				InstantiateBlood(hitInfo,false);
-			}
-		}
-		yield return new WaitForEndOfFrame ();
-	}
+        if (m_asHitSound)
+            m_asHitSound.Play();
 
-	[Header("BloodForMelleAttaacks")]
-	RaycastHit hit;
-	[Tooltip("Put your particle blood effect here.")]
-	public GameObject bloodEffect;
-
-	void InstantiateBlood (RaycastHit _hitPos,bool swordHitWithGunOrNot) {		
-
-		if (currentWeapo == "gun") {
-			GunScript.HitMarkerSound ();
-
-			if (_hitSound)
-				_hitSound.Play ();
-			else
-				print ("Missing hit sound");
-			
-			if (!swordHitWithGunOrNot) {
-				if (bloodEffect)
-					Instantiate (bloodEffect, _hitPos.point, Quaternion.identity);
-				else
-					print ("Missing blood effect prefab in the inspector.");
-			}
-		} 
-	}
-	private GameObject myBloodEffect;
-
-
-	[Header("Player SOUNDS")]
-	[Tooltip("Jump sound when player jumps.")]
-	public AudioSource _jumpSound;
-	[Tooltip("Sound while player makes when successfully reloads weapon.")]
-	public AudioSource _freakingZombiesSound;
-	[Tooltip("Sound Bullet makes when hits target.")]
-	public AudioSource _hitSound;
-	[Tooltip("Walk sound player makes.")]
-	public AudioSource _walkSound;
-	[Tooltip("Run Sound player makes.")]
-	public AudioSource _runSound;
+        if (m_prefabBloodEffect)
+            Instantiate(m_prefabBloodEffect, _sHitPos.point, Quaternion.identity);
+    }
 
     private void OnDrawGizmos()
     {
-		Gizmos.color = Color.blue;
+        Gizmos.color = Color.blue;
         Gizmos.DrawCube(this.transform.position, Vector2.one);
     }
 }

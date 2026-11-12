@@ -1,186 +1,204 @@
 using UnityEngine;
-using System.Collections;
+using UnityEngine.Serialization;
 
+public class MouseLookScript : MonoBehaviour
+{
+    [FormerlySerializedAs("myCamera")]
+    public Transform m_trCamera;
 
-public class MouseLookScript : MonoBehaviour {
+    private Player m_cPlayer;
+    private PlayerMovementScript m_cPlayerMovement;
 
-	//[HideInInspector]
-	public Transform myCamera;
+    [Header("Z Rotation Camera")]
+    [HideInInspector] [FormerlySerializedAs("timer")] public float m_fTimer;
+    [HideInInspector] [FormerlySerializedAs("int_timer")] public int m_nTimer;
+    [HideInInspector] [FormerlySerializedAs("zRotation")] public float m_fZRotation;
+    [HideInInspector] [FormerlySerializedAs("wantedZ")] public float m_fWantedZ;
+    [HideInInspector] [FormerlySerializedAs("timeSpeed")] public float m_fTimeSpeed = 2f;
+    [HideInInspector] [FormerlySerializedAs("timerToRotateZ")] public float m_fTimerToRotateZ;
 
-	private Player playerComponent;
+    [Tooltip("Current mouse sensivity, changes in the weapon properties")]
+    [FormerlySerializedAs("mouseSensitvity")]
+    public float m_fMouseSensitivity = 0f;
 
-	void Awake(){
-		playerComponent = GetComponent<Player>();
-    }
+    [HideInInspector]
+    [FormerlySerializedAs("mouseSensitvity_notAiming")]
+    public float m_fMouseSensitivityNotAiming = 300f;
 
-    public void Initialize(Transform trMainCamera)
+    [HideInInspector]
+    [FormerlySerializedAs("mouseSensitvity_aiming")]
+    public float m_fMouseSensitivityAiming = 50f;
+
+    private float m_fRotationYVelocity;
+    private float m_fCameraXVelocity;
+
+    [Tooltip("Speed that determines how much camera rotation will lag behind mouse movement.")]
+    [FormerlySerializedAs("yRotationSpeed")]
+    public float m_fYRotationSpeed;
+
+    [FormerlySerializedAs("xCameraSpeed")]
+    public float m_fXCameraSpeed;
+
+    [HideInInspector]
+    [FormerlySerializedAs("wantedYRotation")]
+    public float m_fWantedYRotation;
+
+    [HideInInspector]
+    [FormerlySerializedAs("currentYRotation")]
+    public float m_fCurrentYRotation;
+
+    [HideInInspector]
+    [FormerlySerializedAs("wantedCameraXRotation")]
+    public float m_fWantedCameraXRotation;
+
+    [HideInInspector]
+    [FormerlySerializedAs("currentCameraXRotation")]
+    public float m_fCurrentCameraXRotation;
+
+    [Tooltip("Top camera angle.")]
+    [FormerlySerializedAs("topAngleView")]
+    public float m_fTopAngleView = 60f;
+
+    [Tooltip("Minimum camera angle.")]
+    [FormerlySerializedAs("bottomAngleView")]
+    public float m_fBottomAngleView = -45f;
+
+    [Tooltip("Current weapon that player carries.")]
+    [HideInInspector]
+    [FormerlySerializedAs("weapon")]
+    public GameObject m_objWeapon;
+
+    private float m_fDeltaTime = 0.0f;
+
+    [Tooltip("Shows FPS in top left corner.")]
+    [FormerlySerializedAs("showFps")]
+    public bool m_bShowFps = true;
+
+    // 외부 접근 프로퍼티
+    public float CurrentYRotation => m_fCurrentYRotation;
+    public float CurrentCameraXRotation => m_fCurrentCameraXRotation;
+    public float WantedYRotation
     {
-		if (!playerComponent)
-			playerComponent = GetComponent<Player>();
-
-		if (playerComponent == null || playerComponent.isPlayer)
-			Cursor.lockState = CursorLockMode.Locked;
-
-        myCamera = trMainCamera;
+        get => m_fWantedYRotation;
+        set => m_fWantedYRotation = value;
+    }
+    public float WantedCameraXRotation
+    {
+        get => m_fWantedCameraXRotation;
+        set => m_fWantedCameraXRotation = value;
     }
 
-    /*
-	* Locking the mouse if pressing L.
-	* Triggering the headbob camera omvement if player is faster than 1 of speed
-	*/
-    void  Update(){
-		if (playerComponent != null && !playerComponent.isPlayer) return;
+    private void Awake()
+    {
+        m_cPlayer = GetComponent<Player>();
+        m_cPlayerMovement = GetComponent<PlayerMovementScript>();
+    }
 
-		MouseInputMovement();
+    public void Initialize(Transform _trMainCamera)
+    {
+        if (!m_cPlayer)
+            m_cPlayer = GetComponent<Player>();
+        if (!m_cPlayerMovement)
+            m_cPlayerMovement = GetComponent<PlayerMovementScript>();
 
-		if (Input.GetKeyDown (KeyCode.L)) {
-			Cursor.lockState = CursorLockMode.Locked;
+        if (m_cPlayer == null || m_cPlayer.IsPlayer)
+            Cursor.lockState = CursorLockMode.Locked;
 
-		}
-		deltaTime += (Time.deltaTime - deltaTime) * 0.1f;
+        m_trCamera = _trMainCamera;
+    }
 
-		PlayerMovementScript pms = GetComponent<PlayerMovementScript>();
-		if(pms && pms.currentSpeed > 1)
-			HeadMovement ();
+    public void SetSensitivity(float _fNotAiming, float _fAiming)
+    {
+        m_fMouseSensitivityNotAiming = _fNotAiming;
+        m_fMouseSensitivityAiming = _fAiming;
+    }
 
-	}
+    private void Update()
+    {
+        if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
 
-	[Header("Z Rotation Camera")]
-	[HideInInspector] public float timer;
-	[HideInInspector] public int int_timer;
-	[HideInInspector] public float zRotation;
-	[HideInInspector] public float wantedZ;
-	[HideInInspector] public float timeSpeed = 2;
+        UpdateMouseInput();
 
-	[HideInInspector] public float timerToRotateZ;
-	/*
-	* Switching Z rotation and applying to camera in camera Rotation().
-	*/
-	void HeadMovement(){
-		timer += timeSpeed * Time.deltaTime;
-		int_timer = Mathf.RoundToInt (timer);
-		if (int_timer % 2 == 0) {
-			wantedZ = -1;
-		} else {
-			wantedZ = 1;
-		}
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+        }
 
-		zRotation = Mathf.Lerp (zRotation, wantedZ, Time.deltaTime * timerToRotateZ);
-	}
-	[Tooltip("Current mouse sensivity, changes in the weapon properties")]
-	public float mouseSensitvity = 0;
-	[HideInInspector]
-	public float mouseSensitvity_notAiming = 300;
-	[HideInInspector]
-	public float mouseSensitvity_aiming = 50;
+        m_fDeltaTime += (Time.deltaTime - m_fDeltaTime) * 0.1f;
 
-/*
-* FixedUpdate()
-* If aiming set the mouse sensitvity from our variables and vice versa.
-*/
-void FixedUpdate(){
-	if (playerComponent != null && !playerComponent.isPlayer) return;
+        if (m_cPlayerMovement && m_cPlayerMovement.CurrentSpeed > 1f)
+            UpdateHeadBob();
+    }
 
-	PlayerMovementScript pms = GetComponent<PlayerMovementScript>();
-	/*
-	 * Reduxing mouse sensitvity if we are aiming.
-	 */
-	if(Input.GetAxis("Fire2") != 0){
-		mouseSensitvity = mouseSensitvity_aiming;
-	}
-	else if(pms && pms.maxSpeed > 5){
-		mouseSensitvity = mouseSensitvity_notAiming;
-	}
-	else{
-		mouseSensitvity = mouseSensitvity_notAiming;
-	}
+    private void UpdateHeadBob()
+    {
+        m_fTimer += m_fTimeSpeed * Time.deltaTime;
+        m_nTimer = Mathf.RoundToInt(m_fTimer);
+        if (m_nTimer % 2 == 0)
+            m_fWantedZ = -1f;
+        else
+            m_fWantedZ = 1f;
 
-	ApplyingStuff();
-}
+        m_fZRotation = Mathf.Lerp(m_fZRotation, m_fWantedZ, Time.deltaTime * m_fTimerToRotateZ);
+    }
 
+    private void FixedUpdate()
+    {
+        if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
 
-private float rotationYVelocity, cameraXVelocity;
-[Tooltip("Speed that determines how much camera rotation will lag behind mouse movement.")]
-public float yRotationSpeed, xCameraSpeed;
+        if (Input.GetAxis("Fire2") != 0f)
+        {
+            m_fMouseSensitivity = m_fMouseSensitivityAiming;
+        }
+        else
+        {
+            m_fMouseSensitivity = m_fMouseSensitivityNotAiming;
+        }
 
-[HideInInspector]
-public float wantedYRotation;
-[HideInInspector]
-public float currentYRotation;
+        ApplyCameraRotation();
+    }
 
-[HideInInspector]
-public float wantedCameraXRotation;
-[HideInInspector]
-public float currentCameraXRotation;
+    private void UpdateMouseInput()
+    {
+        m_fWantedYRotation += Input.GetAxis("Mouse X") * m_fMouseSensitivity;
+        m_fWantedCameraXRotation -= Input.GetAxis("Mouse Y") * m_fMouseSensitivity;
+        m_fWantedCameraXRotation = Mathf.Clamp(m_fWantedCameraXRotation, m_fBottomAngleView, m_fTopAngleView);
+    }
 
-[Tooltip("Top camera angle.")]
-public float topAngleView = 60;
-[Tooltip("Minimum camera angle.")]
-public float bottomAngleView = -45;
-/*
- * Upon mouse movenet it increases/decreased wanted value. (not actually moving yet)
- * Clamping the camera rotation X to top and bottom angles.
- */
-void MouseInputMovement(){
+    private void ApplyCameraRotation()
+    {
+        m_fCurrentYRotation = Mathf.SmoothDamp(m_fCurrentYRotation, m_fWantedYRotation, ref m_fRotationYVelocity, m_fYRotationSpeed);
+        m_fCurrentCameraXRotation = Mathf.SmoothDamp(m_fCurrentCameraXRotation, m_fWantedCameraXRotation, ref m_fCameraXVelocity, m_fXCameraSpeed);
 
-	wantedYRotation += Input.GetAxis("Mouse X") * mouseSensitvity;
+        transform.rotation = Quaternion.Euler(0f, m_fCurrentYRotation, 0f);
+        if (m_trCamera)
+            m_trCamera.localRotation = Quaternion.Euler(m_fCurrentCameraXRotation, 0f, m_fZRotation);
+    }
 
-	wantedCameraXRotation -= Input.GetAxis("Mouse Y") * mouseSensitvity;
+    private void OnGUI()
+    {
+        if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
 
-	wantedCameraXRotation = Mathf.Clamp(wantedCameraXRotation, bottomAngleView, topAngleView);
+        if (m_bShowFps)
+        {
+            DrawFpsCounter();
+        }
+    }
 
-}
+    private void DrawFpsCounter()
+    {
+        int nWidth = Screen.width;
+        int nHeight = Screen.height;
 
-/*
- * Smoothing the wanted movement.
- * Calling the waeponRotation form here, we are rotating the waepon from this script.
- * Applying the camera wanted rotation to its transform.
- */
-void ApplyingStuff(){
+        GUIStyle styleLabel = new GUIStyle();
+        Rect rectArea = new Rect(0f, 0f, nWidth, nHeight * 2f / 100f);
+        styleLabel.alignment = TextAnchor.UpperLeft;
+        styleLabel.fontSize = nHeight * 2 / 100;
+        styleLabel.normal.textColor = Color.white;
 
-	currentYRotation = Mathf.SmoothDamp(currentYRotation, wantedYRotation, ref rotationYVelocity, yRotationSpeed);
-	currentCameraXRotation = Mathf.SmoothDamp(currentCameraXRotation, wantedCameraXRotation, ref cameraXVelocity, xCameraSpeed);
-
-	transform.rotation = Quaternion.Euler(0, currentYRotation, 0);
-	if(myCamera)
-		myCamera.localRotation = Quaternion.Euler(currentCameraXRotation, 0, zRotation);
-
-}
-
-[Tooltip("Current weapon that player carries.")]
-[HideInInspector]
-public GameObject weapon;
-
-float deltaTime = 0.0f;
-[Tooltip("Shows FPS in top left corner.")]
-public bool showFps = true;
-/*
-* Shows fps if its set to true.
-*/
-void OnGUI(){
-	if (playerComponent != null && !playerComponent.isPlayer) return;
-
-	if(showFps){
-		FPSCounter();
-	}
-
-}
-/*
-* Calculating real fps because unity status tab shows too much fps even when its not that mutch so i made my own.
-*/
-void FPSCounter(){
-	int w = Screen.width, h = Screen.height;
-
-	GUIStyle style = new GUIStyle();
-
-	Rect rect = new Rect(0, 0, w, h * 2 / 100);
-	style.alignment = TextAnchor.UpperLeft;
-	style.fontSize = h * 2 / 100;
-	style.normal.textColor = Color.white;
-	float msec = deltaTime * 1000.0f;
-	float fps = 1.0f / deltaTime;
-	string text = string.Format("{0:0.0} ms ({1:0.} fps)", msec, fps);
-	GUI.Label(rect, text, style);
-}
-
+        float fMsec = m_fDeltaTime * 1000.0f;
+        float fFps = 1.0f / Mathf.Max(0.0001f, m_fDeltaTime);
+        string strText = string.Format("{0:0.0} ms ({1:0.} fps)", fMsec, fFps);
+        GUI.Label(rectArea, strText, styleLabel);
+    }
 }

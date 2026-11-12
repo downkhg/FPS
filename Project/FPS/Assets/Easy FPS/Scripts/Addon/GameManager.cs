@@ -1,103 +1,122 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class GameManager : MonoBehaviour
 {
-    [SerializeField] GameObject prefabPlayer;
+    [SerializeField, FormerlySerializedAs("prefabPlayer")]
+    private GameObject m_prefabPlayer;
 
-    Camera cameraComponent;
+    private Camera m_camMainComponent;
 
-    [SerializeField] Player cPlayer;
-    [SerializeField] Player cNpc;
+    [SerializeField, FormerlySerializedAs("cPlayer")]
+    private Player m_cPlayer;
 
-    [SerializeField] MouseLookScript MouseLookScript;
-    [SerializeField] TextMesh HUD_bullets;
-    [SerializeField] Transform mainCamera;
-    [SerializeField] Camera secondCamera;
+    [SerializeField, FormerlySerializedAs("cNpc")]
+    private Player m_cNpc;
 
-    [SerializeField] Transform trLevelFloor;
+    [SerializeField, FormerlySerializedAs("MouseLookScript")]
+    private MouseLookScript m_cMouseLook;
 
-    [SerializeField] GameObject bulletSpawnPlace;
-    
-    public TextMesh HudBullets => HUD_bullets;
-    public Transform MainCamera => mainCamera;
-    public Camera SecondCamera => secondCamera;
-    public Transform transformLevelFloor => trLevelFloor;
+    [SerializeField, FormerlySerializedAs("HUD_bullets")]
+    private TextMesh m_tmHudBullets;
 
-    public GameObject BulletSpawnPlace => bulletSpawnPlace;
-   
-    public Camera CameraComponent => cameraComponent;
-    
-    public Player CurrentPlayer => cPlayer;
-    public Player CurrentNpc => cNpc;
+    [SerializeField, FormerlySerializedAs("mainCamera")]
+    private Transform m_trMainCamera;
 
-    public static GameManager instance;
+    [SerializeField, FormerlySerializedAs("secondCamera")]
+    private Camera m_camSecond;
+
+    [SerializeField, FormerlySerializedAs("trLevelFloor")]
+    private Transform m_trLevelFloor;
+
+    [SerializeField, FormerlySerializedAs("bulletSpawnPlace")]
+    private GameObject m_objBulletSpawnPlace;
+
+    public static GameManager s_cInstance;
+    public static GameManager instance => s_cInstance;
+
+    // ==================== 프로퍼티 ====================
+    public TextMesh HudBullets => m_tmHudBullets;
+    public Transform MainCamera => m_trMainCamera;
+    public Camera SecondCamera => m_camSecond;
+    public Transform TransformLevelFloor => m_trLevelFloor;
+    public GameObject BulletSpawnPlace => m_objBulletSpawnPlace;
+    public Camera CameraComponent => m_camMainComponent;
+    public Player CurrentPlayer => m_cPlayer;
+    public Player CurrentNpc => m_cNpc;
+
+    private void Awake()
+    {
+        s_cInstance = this;
+        Initialize();
+    }
 
     public void Initialize()
     {
         // 카메라 오브젝트에 실수로 부착된 중복 Player 컴포넌트가 있다면 제거
-        if (mainCamera)
+        if (m_trMainCamera)
         {
-            Player strayPlayerOnCam = mainCamera.GetComponent<Player>();
-            if (strayPlayerOnCam != null && strayPlayerOnCam != cPlayer)
+            Player cStrayPlayerOnCam = m_trMainCamera.GetComponent<Player>();
+            if (cStrayPlayerOnCam != null && cStrayPlayerOnCam != m_cPlayer)
             {
-                Destroy(strayPlayerOnCam);
+                Destroy(cStrayPlayerOnCam);
             }
         }
 
-        if (cPlayer)
+        if (m_cPlayer)
         {
             // 동일 오브젝트에 중복 부착된 Player 컴포넌트 정리
-            Player[] playerComps = cPlayer.GetComponents<Player>();
-            for (int i = 0; i < playerComps.Length; i++)
+            Player[] arrPlayerComps = m_cPlayer.GetComponents<Player>();
+            for (int i = 0; i < arrPlayerComps.Length; i++)
             {
-                if (playerComps[i] != cPlayer)
+                if (arrPlayerComps[i] != m_cPlayer)
                 {
-                    Destroy(playerComps[i]);
+                    Destroy(arrPlayerComps[i]);
                 }
             }
 
-            cPlayer.isPlayer = true;
-            cPlayer.EnsureComponents();
+            m_cPlayer.IsPlayer = true;
+            m_cPlayer.EnsureComponents();
 
-            if (mainCamera)
+            if (m_trMainCamera)
             {
-                mainCamera.parent = cPlayer.ViewPivot;
-                mainCamera.localPosition = Vector3.zero;
-                mainCamera.localRotation = Quaternion.identity;
-                cameraComponent = mainCamera.GetComponent<Camera>();
+                m_trMainCamera.parent = m_cPlayer.ViewPivot;
+                m_trMainCamera.localPosition = Vector3.zero;
+                m_trMainCamera.localRotation = Quaternion.identity;
+                m_camMainComponent = m_trMainCamera.GetComponent<Camera>();
             }
 
-            cPlayer.Initialize(mainCamera, secondCamera);
+            m_cPlayer.Initialize(m_trMainCamera, m_camSecond);
 
-            if (MouseLookScript)
-                MouseLookScript.Initialize(mainCamera);
+            if (m_cMouseLook)
+                m_cMouseLook.Initialize(m_trMainCamera);
 
             // 플레이어에 PlayerController가 없으면 자동 추가
-            if (!cPlayer.GetComponent<PlayerController>())
+            if (!m_cPlayer.GetComponent<PlayerController>())
             {
-                cPlayer.gameObject.AddComponent<PlayerController>();
+                m_cPlayer.gameObject.AddComponent<PlayerController>();
             }
         }
 
-        if (cNpc)
+        if (m_cNpc)
         {
-            Player[] npcComps = cNpc.GetComponents<Player>();
-            for (int i = 0; i < npcComps.Length; i++)
+            Player[] arrNpcComps = m_cNpc.GetComponents<Player>();
+            for (int i = 0; i < arrNpcComps.Length; i++)
             {
-                if (npcComps[i] != cNpc)
+                if (arrNpcComps[i] != m_cNpc)
                 {
-                    Destroy(npcComps[i]);
+                    Destroy(arrNpcComps[i]);
                 }
             }
 
-            cNpc.isPlayer = false;
-            cNpc.EnsureComponents();
-            cNpc.Initialize(null, null);
+            m_cNpc.IsPlayer = false;
+            m_cNpc.EnsureComponents();
+            m_cNpc.Initialize(null, null);
 
             // NPC에 AIController가 없으면 자동 추가
-            if (!cNpc.GetComponent<AIController>())
+            if (!m_cNpc.GetComponent<AIController>())
             {
-                cNpc.gameObject.AddComponent<AIController>();
+                m_cNpc.gameObject.AddComponent<AIController>();
             }
         }
 
@@ -106,21 +125,5 @@ public class GameManager : MonoBehaviour
         {
             gameObject.AddComponent<ControllerDebugger>();
         }
-    }
-
-    private void Awake()
-    {
-        instance = this;
-        Initialize();
-    }
-
-    void Update()
-    {
-        
-    }
-
-    private void FixedUpdate()
-    {
-        
     }
 }

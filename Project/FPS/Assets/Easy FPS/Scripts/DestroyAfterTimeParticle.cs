@@ -1,15 +1,14 @@
-﻿using System.Collections;
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.Serialization;
 
-public class DestroyAfterTimeParticle : MonoBehaviour {
-	[Tooltip("Time to destroy")]
-	public float timeToDestroy = 0.8f;
-	/*
-	* Destroys gameobject after its created on scene.
-	* This is used for particles and flashes.
-	*/
-	void Start () {
-		Destroy (gameObject, timeToDestroy);
-	}
+public class DestroyAfterTimeParticle : MonoBehaviour
+{
+    [Tooltip("Time to destroy")]
+    [FormerlySerializedAs("timeToDestroy")]
+    public float m_fTimeToDestroy = 0.8f;
 
+    private void Start()
+    {
+        Destroy(gameObject, m_fTimeToDestroy);
+    }
 }
