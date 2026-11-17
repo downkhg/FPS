@@ -587,6 +587,7 @@ public class GUIManager : MonoBehaviour
         {
             m_btnPauseQuit.onClick.RemoveAllListeners();
             m_btnPauseQuit.onClick.AddListener(QuitGame);
+            m_btnPauseQuit.
         }
         if (m_sliderPauseBgm)
         {
