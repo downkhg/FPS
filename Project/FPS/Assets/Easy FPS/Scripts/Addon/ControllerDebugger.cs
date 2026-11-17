@@ -83,6 +83,7 @@ public class ControllerDebugger : MonoBehaviour
     void OnGUI()
     {
         if (!m_bShowDebugGUI) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         InitStyles();
 
@@ -149,6 +150,11 @@ public class ControllerDebugger : MonoBehaviour
             if (GUILayout.Button("Reload", m_cBtnStyle)) m_cPlayerController.SetState(PlayerController.PlayerState.Reload);
             if (GUILayout.Button("Melee", m_cBtnStyle)) m_cPlayerController.SetState(PlayerController.PlayerState.Melee);
             if (GUILayout.Button("NextGun", m_cBtnStyle)) cPlayer?.NextWeapon();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Damage(-25)", m_cBtnStyle)) cPlayer?.TakeDamage(25f);
+            if (GUILayout.Button("GameOver", m_cBtnStyle)) GUIManager.s_cInstance?.ShowGameOver("DEBUG GAME OVER TRIGGERED");
             GUILayout.EndHorizontal();
         }
         else

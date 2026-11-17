@@ -23,6 +23,9 @@ public class BulletScript : MonoBehaviour
     [FormerlySerializedAs("ignoreLayer")]
     public LayerMask m_maskIgnoreLayer;
 
+    [Tooltip("Damage dealt on hit")]
+    public float m_fDamage = 20f;
+
     private RaycastHit m_hitInfo;
     private bool m_bHasProcessedHit = false;
 
@@ -62,6 +65,15 @@ public class BulletScript : MonoBehaviour
 
                 if (m_hitInfo.transform.CompareTag("Dummie") || m_hitInfo.transform.CompareTag("Player"))
                 {
+                    if (m_hitInfo.distance > 0.35f)
+                    {
+                        Player cHitPlayer = m_hitInfo.transform.GetComponentInParent<Player>();
+                        if (cHitPlayer != null)
+                        {
+                            cHitPlayer.TakeDamage(m_fDamage);
+                        }
+                    }
+
                     if (m_prefabBloodEffect != null)
                     {
                         Instantiate(m_prefabBloodEffect, m_hitInfo.point, Quaternion.LookRotation(m_hitInfo.normal));

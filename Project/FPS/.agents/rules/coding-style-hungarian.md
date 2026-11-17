@@ -26,6 +26,13 @@
 | | `AudioSource` | **`as`** | `m_asShoot`, `m_asReload`, `m_asHitMarker` | `_asHitMarker` |
 | | `TextMesh` | **`tm`** | `m_tmHudBullets` | `_tmHudBullets` |
 | | `Texture` / `Texture2D` | **`tex`** | `m_texCrosshairH`, `m_texCrosshairV` | `_texIcon` |
+| **UI 컴포넌트 (uGUI/TMP)** | `Canvas` | **`canvas`** | `m_canvasMain` | `_canvasRoot` |
+| | `RectTransform` | **`rt`** | `m_rtPanel`, `m_rtHpFill` | `_rtParent` |
+| | `UnityEngine.UI.Button` | **`btn`** | `m_btnStartGame`, `m_btnResume`, `m_btnQuit` | `_btnTarget` |
+| | `UnityEngine.UI.Slider` | **`slider`** | `m_sliderBgmVolume`, `m_sliderSfxVolume` | `_sliderTarget` |
+| | `UnityEngine.UI.Toggle` | **`toggle`** | `m_toggleMute` | `_toggleTarget` |
+| | `UnityEngine.UI.Image` | **`img`** | `m_imgHpFill`, `m_imgBackground` | `_imgTarget` |
+| | `TMPro.TextMeshProUGUI` | **`txt`** | `m_txtHp`, `m_txtAmmo`, `m_txtGameOverReason` | `_txtTarget` |
 | **기본형/구조체** | `bool` | **`b`** | `m_bIsPlayer`, `m_bIsReloading`, `m_bIsAiming` | `_bEnable` |
 | | `int` | **`n`** | `m_nCurrentWeaponIndex`, `m_nWalkSpeed`, `m_nMaxSpeed` | `_nIndex` |
 | | `float` | **`f`** | `m_fAttackTimer`, `m_fDetectionRadius` | `_fDeltaTime` |

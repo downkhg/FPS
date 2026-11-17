@@ -101,7 +101,7 @@ public class MouseLookScript : MonoBehaviour
         if (!m_cPlayerMovement)
             m_cPlayerMovement = GetComponent<PlayerMovementScript>();
 
-        if (m_cPlayer == null || m_cPlayer.IsPlayer)
+        if ((m_cPlayer == null || m_cPlayer.IsPlayer) && GUIManager.CanProcessGameplayInput())
             Cursor.lockState = CursorLockMode.Locked;
 
         m_trCamera = _trMainCamera;
@@ -116,18 +116,18 @@ public class MouseLookScript : MonoBehaviour
     private void Update()
     {
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         UpdateMouseInput();
-
-        if (Input.GetKeyDown(KeyCode.L))
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-        }
 
         m_fDeltaTime += (Time.deltaTime - m_fDeltaTime) * 0.1f;
 
         if (m_cPlayerMovement && m_cPlayerMovement.CurrentSpeed > 1f)
             UpdateHeadBob();
+        else if (m_cPlayerMovement)
+        {
+            m_cPlayerMovement.CurrentSpeed = 0;
+        }
     }
 
     private void UpdateHeadBob()
@@ -145,6 +145,7 @@ public class MouseLookScript : MonoBehaviour
     private void FixedUpdate()
     {
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         if (Input.GetAxis("Fire2") != 0f)
         {
@@ -178,6 +179,7 @@ public class MouseLookScript : MonoBehaviour
     private void OnGUI()
     {
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         if (m_bShowFps)
         {

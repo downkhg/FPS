@@ -8,6 +8,15 @@ public class Player : MonoBehaviour
     [FormerlySerializedAs("isPlayer")]
     public bool m_bIsPlayer = true;
 
+    [Header("Health Settings")]
+    [SerializeField]
+    private float m_fMaxHp = 100f;
+
+    [SerializeField]
+    private float m_fCurrentHp = 100f;
+
+    private bool m_bIsDead = false;
+
     [Tooltip("카메라가 없을 때(NPC) 플레이어의 Forward를 기준으로 키보드 입력에 맞춰 함께 이동할지 여부")]
     [FormerlySerializedAs("syncMovementWithPlayer")]
     public bool m_bSyncMovementWithPlayer = true;
@@ -63,6 +72,9 @@ public class Player : MonoBehaviour
     public GameObject BulletSpawnPlace => m_objBulletSpawnPlace;
     public int CurrentWeaponIndex => m_nCurrentWeaponIndex;
     public IReadOnlyList<GunScript> Weapons => m_listWeaponPool;
+    public float MaxHp => m_fMaxHp;
+    public float CurrentHp => m_fCurrentHp;
+    public bool IsDead => m_bIsDead;
 
     // NPC 또는 컨트롤러가 조준하고 있는 월드 목표 지점
     public Vector3? AimTargetPosition { get; set; }
@@ -109,12 +121,14 @@ public class Player : MonoBehaviour
 
     void Update()
     {
+        if (!GUIManager.CanProcessGameplayInput()) return;
         if (m_bIsInitGunScript && m_cCurrentGun && m_cCurrentGun.gameObject.activeInHierarchy)
             m_cCurrentGun.UpdateProcess();
     }
 
     private void FixedUpdate()
     {
+        if (!GUIManager.CanProcessGameplayInput()) return;
         if (m_bIsInitGunScript && m_cCurrentGun && m_cCurrentGun.gameObject.activeInHierarchy)
             m_cCurrentGun.FixedUpdateProcess();
     }
@@ -139,6 +153,13 @@ public class Player : MonoBehaviour
 
         if (m_cGunInventory)
             m_cGunInventory.Initialize();
+
+        m_fCurrentHp = m_fMaxHp;
+        m_bIsDead = false;
+        if (m_bIsPlayer && GUIManager.s_cInstance != null)
+        {
+            GUIManager.s_cInstance.UpdateHpUi(m_fCurrentHp, m_fMaxHp);
+        }
 
         m_bIsInitialized = true;
     }
@@ -302,6 +323,11 @@ public class Player : MonoBehaviour
         {
             m_cGunInventory.SyncWeaponState(m_nCurrentWeaponIndex, m_cCurrentGun != null ? m_cCurrentGun.gameObject : null);
         }
+
+        if (GUIManager.s_cInstance != null)
+        {
+            GUIManager.s_cInstance.RefreshSfxSources();
+        }
     }
 
     public void GunChangeSetUpdate(Transform _trMainCamera, Camera _camSecond)
@@ -384,5 +410,46 @@ public class Player : MonoBehaviour
         if (m_listWeaponPool == null || m_listWeaponPool.Count == 0) return;
         int nNext = (m_nCurrentWeaponIndex + 1) % m_listWeaponPool.Count;
         EquipWeapon(nNext, false);
+    }
+
+    // ==================== 체력 및 피격/사망 처리 ====================
+
+    public void TakeDamage(float _fDamage)
+    {
+        if (m_bIsDead || _fDamage <= 0f) return;
+
+        m_fCurrentHp = Mathf.Max(0f, m_fCurrentHp - _fDamage);
+
+        if (m_bIsPlayer && GUIManager.s_cInstance != null)
+        {
+            GUIManager.s_cInstance.UpdateHpUi(m_fCurrentHp, m_fMaxHp);
+        }
+
+        if (m_fCurrentHp <= 0f)
+        {
+            Die();
+        }
+    }
+
+    public void Die()
+    {
+        if (m_bIsDead) return;
+        m_bIsDead = true;
+
+        Move(Vector2.zero);
+
+        if (m_bIsPlayer)
+        {
+            if (GUIManager.s_cInstance != null)
+            {
+                GUIManager.s_cInstance.ShowGameOver("MISSION FAILED - YOU DIED");
+            }
+        }
+        else
+        {
+            // NPC 사망 시 체력 리셋 (지속 교전 지원)
+            m_bIsDead = false;
+            m_fCurrentHp = m_fMaxHp;
+        }
     }
 }

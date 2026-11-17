@@ -126,6 +126,7 @@ public class GunInventory : MonoBehaviour
     void OnGUI()
     {
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         if (m_objCurrentGun && m_listGunsIHave != null && m_listGunsIHave.Count > 0)
         {

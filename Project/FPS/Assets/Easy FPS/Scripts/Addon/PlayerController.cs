@@ -39,6 +39,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         if (!m_cPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         // 매 프레임 현재 상태에 따른 행동 및 전이 검사 실행
         UpdateState();

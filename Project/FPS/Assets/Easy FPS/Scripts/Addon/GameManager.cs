@@ -32,6 +32,9 @@ public class GameManager : MonoBehaviour
     [SerializeField, FormerlySerializedAs("bulletSpawnPlace")]
     private GameObject m_objBulletSpawnPlace;
 
+    [SerializeField]
+    private GUIManager m_cGuiManager;
+
     public static GameManager s_cInstance;
     public static GameManager instance => s_cInstance;
 
@@ -44,6 +47,7 @@ public class GameManager : MonoBehaviour
     public Camera CameraComponent => m_camMainComponent;
     public Player CurrentPlayer => m_cPlayer;
     public Player CurrentNpc => m_cNpc;
+    public GUIManager GuiManager => m_cGuiManager;
 
     private void Awake()
     {
@@ -124,6 +128,22 @@ public class GameManager : MonoBehaviour
         if (!FindFirstObjectByType<ControllerDebugger>())
         {
             gameObject.AddComponent<ControllerDebugger>();
+        }
+
+        // GUIManager 연결 및 초기화
+        if (!m_cGuiManager)
+        {
+            m_cGuiManager = FindFirstObjectByType<GUIManager>();
+            if (!m_cGuiManager)
+            {
+                m_cGuiManager = gameObject.AddComponent<GUIManager>();
+            }
+        }
+        m_cGuiManager.Initialize();
+
+        if (m_cPlayer)
+        {
+            m_cGuiManager.UpdateHpUi(m_cPlayer.CurrentHp, m_cPlayer.MaxHp);
         }
     }
 }

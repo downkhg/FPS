@@ -658,10 +658,10 @@ public class GunScript : MonoBehaviour
                 if (m_cPlayerMovement.m_asReloadVoiceSound)
                     m_cPlayerMovement.m_asReloadVoiceSound.Play();
 
-                float fNeeded = m_fAmountOfBulletsPerLoad - m_fBulletsInTheGun;
-                if (m_fBulletsIHave >= fNeeded)
+                float fNeeded = m_fAmountOfBulletsPerLoad - m_fBulletsInTheGun; //80 -70= 10
+                if (m_fBulletsIHave >= fNeeded) //9999 >= 10 > T
                 {
-                    m_fBulletsIHave -= fNeeded;
+                    m_fBulletsIHave -= fNeeded; //9999 - 10 = 9989
                     m_fBulletsInTheGun = m_fAmountOfBulletsPerLoad;
                 }
                 else
@@ -681,6 +681,7 @@ public class GunScript : MonoBehaviour
     private void OnGUI()
     {
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
         if (m_camMain == null) return;
 
         if (!m_tmHudBullets && GameManager.s_cInstance != null)
@@ -690,6 +691,11 @@ public class GunScript : MonoBehaviour
 
         if (m_cMouseLook && m_tmHudBullets)
             m_tmHudBullets.text = $"{m_fBulletsIHave} - {m_fBulletsInTheGun}";
+
+        if (GUIManager.s_cInstance != null)
+        {
+            GUIManager.s_cInstance.UpdateAmmoUi(gameObject.name, m_fBulletsInTheGun, m_fBulletsIHave);
+        }
 
         DrawCrosshair();
     }
@@ -716,7 +722,6 @@ public class GunScript : MonoBehaviour
         if (m_animHands && m_cPlayerMovement)
         {
             m_bIsReloading = m_animHands.GetCurrentAnimatorStateInfo(0).IsName(m_strReloadAnimationName);
-
             m_animHands.SetFloat("walkSpeed", m_cPlayerMovement.CurrentSpeed);
             m_animHands.SetBool("aiming", m_bIsAimingControlled);
             m_animHands.SetInteger("maxSpeed", m_cPlayerMovement.MaxSpeed);

@@ -167,12 +167,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1920, y: 1080}
   m_ScreenMatchMode: 0
-  m_MatchWidthOrHeight: 0
+  m_MatchWidthOrHeight: 0.5
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
@@ -265,13 +265,17 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: -1864506846943675010, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 173116, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_Name
       value: NPC
       objectReference: {fileID: 0}
     - target: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: -1
       objectReference: {fileID: 0}
     - target: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_LocalPosition.y
@@ -279,7 +283,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -3.31
+      value: 1.1
       objectReference: {fileID: 0}
     - target: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_LocalRotation.w
@@ -309,20 +313,44 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2306104, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 11400001, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_Cameras.Array.size
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 11415148, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      propertyPath: m_trBulletSpawn
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 11478776, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      propertyPath: m_trCamera
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 13695512, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      propertyPath: m_Enabled
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4867915966715678084, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: isPlayer
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 4867915966715678084, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      propertyPath: m_bIsPlayer
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: -1864506846943675010, guid: c391f12a928274acab8576bb6030641d, type: 3}
     m_RemovedGameObjects:
     - {fileID: 196378, guid: c391f12a928274acab8576bb6030641d, type: 3}
     - {fileID: 102540, guid: c391f12a928274acab8576bb6030641d, type: 3}
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 173116, guid: c391f12a928274acab8576bb6030641d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1344206950}
   m_SourcePrefab: {fileID: 100100000, guid: c391f12a928274acab8576bb6030641d, type: 3}
 --- !u!1 &375445975
 GameObject:
@@ -767,7 +795,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -859,7 +887,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4867915966715678084, guid: c391f12a928274acab8576bb6030641d, type: 3}
   m_PrefabInstance: {fileID: 228398098}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1344206940}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 33fb133e335c4214cbfa365b995eb092, type: 3}
@@ -970,7 +998,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 20.6
+      value: -53.9
       objectReference: {fileID: 0}
     - target: {fileID: 479812, guid: c391f12a928274acab8576bb6030641d, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1017,6 +1045,36 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: c391f12a928274acab8576bb6030641d, type: 3}
+--- !u!1 &1344206940 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 173116, guid: c391f12a928274acab8576bb6030641d, type: 3}
+  m_PrefabInstance: {fileID: 228398098}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1344206950
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1344206940}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1314fb85a3e7a7e4bacea8c55c96679e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_eCurrentState: 0
+  m_fDetectionRadius: 20
+  m_strPrimaryTargetTag: Player
+  m_strSecondaryTargetTag: Dummie
+  m_fSniperRangeMin: 10
+  m_fNormalRangeMax: 5
+  m_fMeleeAttackRange: 2.5
+  m_fSniperFireInterval: 1.5
+  m_fNormalFireInterval: 0.25
+  m_fMeleeInterval: 0.8
+  m_trCurrentTarget: {fileID: 0}
+  m_bShowGizmos: 1
+  m_bShowOnlyWhenSelected: 0
 --- !u!1 &1385504390
 GameObject:
   m_ObjectHideFlags: 0
@@ -1027,6 +1085,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1385504392}
   - component: {fileID: 1385504391}
+  - component: {fileID: 1385504393}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -1046,15 +1105,63 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 565c085b618c9b246a875f07fe0b0f51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  prefabPlayer: {fileID: 0}
-  cPlayer: {fileID: 1749992092}
-  cNpc: {fileID: 849515827}
-  MouseLookScript: {fileID: 1749992079}
-  HUD_bullets: {fileID: 215213938}
-  mainCamera: {fileID: 1939957391}
-  secondCamera: {fileID: 1476417922}
-  trLevelFloor: {fileID: 375445979}
-  bulletSpawnPlace: {fileID: 479864452}
+  m_prefabPlayer: {fileID: 0}
+  m_cPlayer: {fileID: 1749992092}
+  m_cNpc: {fileID: 849515827}
+  m_cMouseLook: {fileID: 1749992079}
+  m_tmHudBullets: {fileID: 215213938}
+  m_trMainCamera: {fileID: 1939957391}
+  m_camSecond: {fileID: 1476417922}
+  m_trLevelFloor: {fileID: 375445979}
+  m_objBulletSpawnPlace: {fileID: 479864452}
+  m_cGuiManager: {fileID: 1385504393}
+--- !u!114 &1385504393
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1385504390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a84c91fd060ef465da64edde8c05b2fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_eCurrentState: 0
+  m_canvasMain: {fileID: 131370553}
+  m_objTitlePanel: {fileID: 0}
+  m_objInGamePanel: {fileID: 0}
+  m_objPausePanel: {fileID: 0}
+  m_objGameOverPanel: {fileID: 0}
+  m_btnTitleStart: {fileID: 0}
+  m_btnTitleQuit: {fileID: 0}
+  m_sliderTitleBgm: {fileID: 0}
+  m_sliderTitleSfx: {fileID: 0}
+  m_toggleTitleMute: {fileID: 0}
+  m_txtTitleBgmValue: {fileID: 0}
+  m_txtTitleSfxValue: {fileID: 0}
+  m_txtInGameGuide: {fileID: 837116982}
+  m_txtInGameHp: {fileID: 0}
+  m_imgInGameHpFill: {fileID: 0}
+  m_txtInGameAmmo: {fileID: 0}
+  m_btnPauseResume: {fileID: 0}
+  m_btnPauseRestart: {fileID: 0}
+  m_btnPauseTitle: {fileID: 0}
+  m_btnPauseQuit: {fileID: 0}
+  m_sliderPauseBgm: {fileID: 0}
+  m_sliderPauseSfx: {fileID: 0}
+  m_togglePauseMute: {fileID: 0}
+  m_txtPauseBgmValue: {fileID: 0}
+  m_txtPauseSfxValue: {fileID: 0}
+  m_txtGameOverMessage: {fileID: 0}
+  m_btnGameOverRestart: {fileID: 0}
+  m_btnGameOverTitle: {fileID: 0}
+  m_btnGameOverQuit: {fileID: 0}
+  m_asBgm: {fileID: 0}
+  m_asUiClick: {fileID: 0}
+  m_fBgmVolume: 0.5
+  m_fSfxVolume: 0.8
+  m_bIsMuted: 0
 --- !u!4 &1385504392
 Transform:
   m_ObjectHideFlags: 0

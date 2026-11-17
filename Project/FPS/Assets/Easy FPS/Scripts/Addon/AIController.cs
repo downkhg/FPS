@@ -88,6 +88,7 @@ public class AIController : MonoBehaviour
     void Update()
     {
         if (!m_cNpc) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
 
         // 공격 쿨다운 타이머 감소
         if (m_fAttackTimer > 0f)

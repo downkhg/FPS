@@ -55,6 +55,7 @@ public class PlayerMovementScript : MonoBehaviour
     [Tooltip("Tells us weather the player is grounded or not.")]
     [FormerlySerializedAs("grounded")]
     public bool m_bIsGrounded;
+    private bool m_bCollisionGrounded;
 
     [Header("Shooting Properties")]
     private LayerMask m_maskIgnoreLayer;
@@ -139,56 +140,77 @@ public class PlayerMovementScript : MonoBehaviour
 
     void PlayerMovementLogic()
     {
-        m_fCurrentSpeed = m_rbBody.linearVelocity.magnitude;
+        // 1. 바닥 감지 상태 갱신 (Raycast + Collision 결합)
+        m_bIsGrounded = RayCastGrounded() || m_bCollisionGrounded;
+
+        // 2. 이동 입력 여부 파악
+        float fHInput = m_vCurrentInputMove.x;
+        float fVInput = m_vCurrentInputMove.y;
+        bool bHasInput = m_bHasWorldMove
+            ? (m_vCurrentWorldMove.sqrMagnitude > 0.0001f)
+            : (Mathf.Abs(fHInput) > 0.01f || Mathf.Abs(fVInput) > 0.01f);
+
+        // 3. 입력 유무에 따른 감속 시간(smoothTime) 조정: 이동 중에는 부드럽게(0.5f), 입력 해제 시 즉시 제동(0.08f)
+        m_fDeaccelerationSpeed = bHasInput ? 0.5f : 0.08f;
+
+        // 4. 수평 속도 클램핑 (최대 이동 속도 초과 방지)
         m_vHorizontalMovement = new Vector2(m_rbBody.linearVelocity.x, m_rbBody.linearVelocity.z);
         if (m_vHorizontalMovement.magnitude > m_nMaxSpeed)
         {
-            m_vHorizontalMovement = m_vHorizontalMovement.normalized;
-            m_vHorizontalMovement *= m_nMaxSpeed;
+            m_vHorizontalMovement = m_vHorizontalMovement.normalized * m_nMaxSpeed;
+            m_rbBody.linearVelocity = new Vector3(
+                m_vHorizontalMovement.x,
+                m_rbBody.linearVelocity.y,
+                m_vHorizontalMovement.y
+            );
         }
 
-        m_rbBody.linearVelocity = new Vector3(
-            m_vHorizontalMovement.x,
-            m_rbBody.linearVelocity.y,
-            m_vHorizontalMovement.y
-        );
-
+        // 5. 지면 감속 (SmoothDamp)
         if (m_bIsGrounded)
         {
             m_rbBody.linearVelocity = Vector3.SmoothDamp(
                 m_rbBody.linearVelocity,
-                new Vector3(0, m_rbBody.linearVelocity.y, 0),
+                new Vector3(0f, m_rbBody.linearVelocity.y, 0f),
                 ref m_vSlowdownVelocity,
                 m_fDeaccelerationSpeed
             );
         }
 
-        float fHInput = m_vCurrentInputMove.x;
-        float fVInput = m_vCurrentInputMove.y;
+        // 6. 무입력 시 지면 정지 스냅 (Zero-Snapping: 잔여 미세 속도 제거)
+        if (!bHasInput && m_bIsGrounded)
+        {
+            Vector2 vCurrentHVel = new Vector2(m_rbBody.linearVelocity.x, m_rbBody.linearVelocity.z);
+            if (vCurrentHVel.sqrMagnitude < 0.01f) // 0.1 m/s 미만 시 완전 정지
+            {
+                m_rbBody.linearVelocity = new Vector3(0f, m_rbBody.linearVelocity.y, 0f);
+                m_vSlowdownVelocity = Vector3.zero;
+            }
+        }
+
+        // 7. 이동 힘(Force) 적용 (입력이 있을 때만 물리력 인가)
         float fForceMultiplier = m_bIsGrounded ? m_fAccelerationSpeed : (m_fAccelerationSpeed / 2f);
 
         if (m_bHasWorldMove)
         {
             // [AI 컨트롤러 / 월드 방향 이동]
-            Vector3 vMoveDir = Vector3.ProjectOnPlane(m_vCurrentWorldMove, Vector3.up).normalized;
-            m_rbBody.AddForce(vMoveDir * fForceMultiplier * Time.deltaTime, ForceMode.Force);
-
-            m_fDeaccelerationSpeed = (m_vCurrentWorldMove.sqrMagnitude > 0.01f) ? 0.5f : 0.1f;
+            if (bHasInput)
+            {
+                Vector3 vMoveDir = Vector3.ProjectOnPlane(m_vCurrentWorldMove, Vector3.up).normalized;
+                m_rbBody.AddForce(vMoveDir * fForceMultiplier * Time.deltaTime, ForceMode.Force);
+            }
         }
         else
         {
             // [플레이어 컨트롤러 / 로컬 축 기준 이동]
-            m_rbBody.AddRelativeForce(fHInput * fForceMultiplier * Time.deltaTime, 0, fVInput * fForceMultiplier * Time.deltaTime);
-
-            if (fHInput != 0 || fVInput != 0)
+            if (bHasInput)
             {
-                m_fDeaccelerationSpeed = 0.5f;
-            }
-            else
-            {
-                m_fDeaccelerationSpeed = 0.1f;
+                m_rbBody.AddRelativeForce(fHInput * fForceMultiplier * Time.deltaTime, 0f, fVInput * fForceMultiplier * Time.deltaTime);
             }
         }
+
+        // 8. 최종 수평 속도(X, Z)를 기준으로 CurrentSpeed 갱신 (Y축 낙하/중력 속도 완전 배제)
+        Vector2 vFinalHorizontal = new Vector2(m_rbBody.linearVelocity.x, m_rbBody.linearVelocity.z);
+        m_fCurrentSpeed = (vFinalHorizontal.sqrMagnitude < 0.0025f) ? 0f : vFinalHorizontal.magnitude;
     }
 
     // ==================== 마리오네트 제어 API ====================
@@ -299,6 +321,7 @@ public class PlayerMovementScript : MonoBehaviour
         {
             if (Vector2.Angle(sContact.normal, Vector3.up) < 60f)
             {
+                m_bCollisionGrounded = true;
                 m_bIsGrounded = true;
             }
         }
@@ -306,7 +329,8 @@ public class PlayerMovementScript : MonoBehaviour
 
     void OnCollisionExit()
     {
-        m_bIsGrounded = false;
+        m_bCollisionGrounded = false;
+        m_bIsGrounded = RayCastGrounded();
     }
 
     /// <summary>
@@ -359,10 +383,15 @@ public class PlayerMovementScript : MonoBehaviour
         {
             if (Physics.Raycast(arrRays[i], out sHitInfo, 2f, ~m_maskIgnoreLayer))
             {
-                if (sHitInfo.transform.CompareTag("Dummie"))
+                if (sHitInfo.transform.CompareTag("Dummie") || sHitInfo.transform.CompareTag("Player"))
                 {
-                    InstantiateBlood(sHitInfo, _cGun);
-                    break;
+                    Player cHitPlayer = sHitInfo.transform.GetComponentInParent<Player>();
+                    if (cHitPlayer != null && cHitPlayer != m_cPlayer)
+                    {
+                        cHitPlayer.TakeDamage(35f);
+                        InstantiateBlood(sHitInfo, _cGun);
+                        break;
+                    }
                 }
             }
         }
