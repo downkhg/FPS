@@ -25,11 +25,13 @@ public class ConfirmPopup : GuiPopupBase
 
     private void Reset()
     {
+        m_ePopupLayer = EPopupLayer.Modal;
         m_bBlocksGameplay = true;
     }
 
     public override void Initialize(GUIManager _cGuiManager, GuiPopupManager _cPopupManager)
     {
+        m_ePopupLayer = EPopupLayer.Modal;
         m_bBlocksGameplay = true;
         base.Initialize(_cGuiManager, _cPopupManager);
 
@@ -68,6 +70,12 @@ public class ConfirmPopup : GuiPopupBase
     {
         m_fnOnConfirm = null;
         base.OnClose();
+    }
+
+    public override void OnResetForPool()
+    {
+        m_fnOnConfirm = null;
+        base.OnResetForPool();
     }
 
     private void OnClickConfirm()

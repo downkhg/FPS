@@ -25,11 +25,13 @@ public class PauseGuiScene : GuiPopupBase
 
     private void Reset()
     {
+        m_ePopupLayer = EPopupLayer.Menu;
         m_bBlocksGameplay = true;
     }
 
     public override void Initialize(GUIManager _cGuiManager, GuiPopupManager _cPopupManager)
     {
+        m_ePopupLayer = EPopupLayer.Menu;
         m_bBlocksGameplay = true;
         base.Initialize(_cGuiManager, _cPopupManager);
         if (m_cGuiManager == null) return;

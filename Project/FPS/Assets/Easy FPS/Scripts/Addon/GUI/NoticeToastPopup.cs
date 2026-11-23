@@ -18,13 +18,21 @@ public class NoticeToastPopup : GuiPopupBase
 
     private void Reset()
     {
+        m_ePopupLayer = EPopupLayer.Active;
         m_bBlocksGameplay = false;
     }
 
     public override void Initialize(GUIManager _cGuiManager, GuiPopupManager _cPopupManager)
     {
+        m_ePopupLayer = EPopupLayer.Active;
         m_bBlocksGameplay = false;
         base.Initialize(_cGuiManager, _cPopupManager);
+    }
+
+    public override void OnResetForPool()
+    {
+        m_fRemainTime = 0f;
+        base.OnResetForPool();
     }
 
     /// <summary>
