@@ -1,16 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.EventSystems;
-using TMPro;
-
-public enum EGuiState
-{
-    Title,      // 시작(타이틀) 화면
-    InGame,     // 인게임 HUD 화면
-    Pause,      // 일시정지 및 환경설정 화면
-    GameOver    // 게임오버 화면
-}
 
 public class GUIManager : MonoBehaviour
 {
@@ -19,101 +9,28 @@ public class GUIManager : MonoBehaviour
     // 씬 리로드 시 타이틀을 건너뛰고 바로 인게임으로 진입할지 여부 (Restart 기능용)
     private static bool s_bStartInGameOnReload = false;
 
-    [Header("GUI State")]
+    [Header("Runtime State")]
     [SerializeField]
-    private EGuiState m_eCurrentState = EGuiState.Title;
+    private string m_strCurrentSceneName = string.Empty;
 
-    [Header("Root Canvas & Panels")]
+    [Header("GUI Scene Prefabs & View List")]
     [SerializeField]
     private Canvas m_canvasMain;
 
+    [Tooltip("런타임에 Canvas 하위로 생성(Instantiate)할 각 GUI 씬 프리팹 목록")]
     [SerializeField]
-    private GameObject m_objTitlePanel;
+    private List<GuiSceneBase> m_listScenePrefabs = new List<GuiSceneBase>();
 
+    [Tooltip("생성되어 프라이빗 딕셔너리에 등록/사용될 GUI 씬 객체들을 담는 별도의 뷰 리스트")]
     [SerializeField]
-    private GameObject m_objInGamePanel;
+    private List<GuiSceneBase> m_listSceneViews = new List<GuiSceneBase>();
 
-    [SerializeField]
-    private GameObject m_objPausePanel;
+    // 오브젝트명(SceneName)을 키로 하여 모든 런타임 접근을 수행하는 프라이빗 딕셔너리
+    private readonly Dictionary<string, IGuiScene> m_dictGuiScenes = new Dictionary<string, IGuiScene>();
 
+    [Header("GUI Popup Manager")]
     [SerializeField]
-    private GameObject m_objGameOverPanel;
-
-    [Header("Title Panel Controls")]
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnTitleStart;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnTitleQuit;
-
-    [SerializeField]
-    private UnityEngine.UI.Slider m_sliderTitleBgm;
-
-    [SerializeField]
-    private UnityEngine.UI.Slider m_sliderTitleSfx;
-
-    [SerializeField]
-    private UnityEngine.UI.Toggle m_toggleTitleMute;
-
-    [SerializeField]
-    private TextMeshProUGUI m_txtTitleBgmValue;
-
-    [SerializeField]
-    private TextMeshProUGUI m_txtTitleSfxValue;
-
-    [Header("InGame HUD Controls")]
-    [SerializeField]
-    private TextMeshProUGUI m_txtInGameGuide;
-
-    [SerializeField]
-    private TextMeshProUGUI m_txtInGameHp;
-
-    [SerializeField]
-    private UnityEngine.UI.Image m_imgInGameHpFill;
-
-    [SerializeField]
-    private TextMeshProUGUI m_txtInGameAmmo;
-
-    [Header("Pause Panel Controls")]
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnPauseResume;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnPauseRestart;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnPauseTitle;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnPauseQuit;
-
-    [SerializeField]
-    private UnityEngine.UI.Slider m_sliderPauseBgm;
-
-    [SerializeField]
-    private UnityEngine.UI.Slider m_sliderPauseSfx;
-
-    [SerializeField]
-    private UnityEngine.UI.Toggle m_togglePauseMute;
-
-    [SerializeField]
-    private TextMeshProUGUI m_txtPauseBgmValue;
-
-    [SerializeField]
-    private TextMeshProUGUI m_txtPauseSfxValue;
-
-    [Header("GameOver Panel Controls")]
-    [SerializeField]
-    private TextMeshProUGUI m_txtGameOverMessage;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnGameOverRestart;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnGameOverTitle;
-
-    [SerializeField]
-    private UnityEngine.UI.Button m_btnGameOverQuit;
+    private GuiPopupManager m_cPopupManager;
 
     [Header("Audio System Settings")]
     [SerializeField]
@@ -133,15 +50,39 @@ public class GUIManager : MonoBehaviour
 
     private readonly Dictionary<AudioSource, float> m_dictSfxBaseVolumes = new Dictionary<AudioSource, float>();
     private bool m_bIsInitialized = false;
-    private bool m_bSuppressUiCallbacks = false;
 
     private const string PREF_BGM_VOL = "FPS_BGM_VOLUME";
     private const string PREF_SFX_VOL = "FPS_SFX_VOLUME";
     private const string PREF_MUTE = "FPS_AUDIO_MUTE";
 
+    // ==================== 프리팹 배열 기반 씬 이름 및 객체 접근 프로퍼티 ====================
+    /// <summary>
+    /// 등록된 프리팹 배열/리스트에서 특정 타입의 프리팹 오브젝트명을 동적으로 취득합니다.
+    /// </summary>
+    public string GetPrefabSceneName<T>() where T : GuiSceneBase
+    {
+        if (m_listScenePrefabs != null)
+        {
+            for (int i = 0; i < m_listScenePrefabs.Count; i++)
+            {
+                if (m_listScenePrefabs[i] is T cPrefab && cPrefab != null)
+                {
+                    return cPrefab.gameObject.name;
+                }
+            }
+        }
+        return string.Empty;
+    }
+
+    public string TitleSceneName => GetPrefabSceneName<TitleGuiScene>();
+    public string InGameSceneName => GetPrefabSceneName<InGameGuiScene>();
+    public string GameOverSceneName => GetPrefabSceneName<GameOverGuiScene>();
+
     // ==================== 프로퍼티 ====================
-    public EGuiState CurrentState => m_eCurrentState;
-    public bool IsGameplayActive => m_eCurrentState == EGuiState.InGame;
+    public string CurrentSceneName => m_strCurrentSceneName;
+    public bool HasBlockingPopupOpen => m_cPopupManager != null && m_cPopupManager.HasBlockingPopupOpen;
+    public bool IsGameplayActive => !string.IsNullOrEmpty(m_strCurrentSceneName) && m_strCurrentSceneName == InGameSceneName && !HasBlockingPopupOpen;
+    public GuiPopupManager PopupManager => m_cPopupManager;
     public float BgmVolume => m_fBgmVolume;
     public float SfxVolume => m_fSfxVolume;
     public bool IsMuted => m_bIsMuted;
@@ -177,36 +118,189 @@ public class GUIManager : MonoBehaviour
         s_cInstance = this;
 
         LoadAudioPreferences();
-        EnsureUiHierarchy();
         EnsureAudioSources();
-        BindUiEvents();
+        InitializeGuiScenes();
+        InitializePopupManager();
         RefreshSfxSources();
         SyncAudioUiControls();
 
         if (s_bStartInGameOnReload)
         {
             s_bStartInGameOnReload = false;
-            SetGuiState(EGuiState.InGame);
+            SetGuiScene(InGameSceneName);
         }
         else
         {
-            SetGuiState(EGuiState.Title);
+            SetGuiScene(TitleSceneName);
         }
+    }
+
+    /// <summary>
+    /// 등록된 프리팹들을 생성하여 별도의 뷰 리스트(m_listSceneViews)에 추가하고,
+    /// 오브젝트명을 키로 프라이빗 딕셔너리(m_dictGuiScenes)에 등록합니다.
+    /// </summary>
+    private void InitializeGuiScenes()
+    {
+        m_dictGuiScenes.Clear();
+
+        if (m_listScenePrefabs == null)
+        {
+            m_listScenePrefabs = new List<GuiSceneBase>();
+        }
+
+        if (m_listSceneViews == null)
+        {
+            m_listSceneViews = new List<GuiSceneBase>();
+        }
+        else
+        {
+            m_listSceneViews.RemoveAll(cView => cView == null);
+        }
+
+        if (m_canvasMain == null)
+        {
+            m_canvasMain = FindFirstObjectByType<Canvas>();
+        }
+
+        Transform trCanvas = m_canvasMain != null ? m_canvasMain.transform : transform;
+
+        // 1. 이미 뷰 리스트에 할당된 씬 내 인스턴스가 있다면 우선 등록
+        for (int i = 0; i < m_listSceneViews.Count; i++)
+        {
+            GuiSceneBase cExistingView = m_listSceneViews[i];
+            if (cExistingView != null && cExistingView.gameObject.scene.IsValid())
+            {
+                RegisterViewToDictionary(cExistingView);
+            }
+        }
+
+        // 2. 프리팹 리스트를 순회하며 인스턴스 생성 후 뷰 리스트 추가 및 프라이빗 딕셔너리 등록
+        for (int i = 0; i < m_listScenePrefabs.Count; i++)
+        {
+            GuiSceneBase prefabScene = m_listScenePrefabs[i];
+            if (prefabScene == null) continue;
+
+            string strPrefabName = prefabScene.gameObject.name;
+
+            // 이미 동일 오브젝트명으로 프라이빗 딕셔너리에 등록되어 있다면 중복 생성 건너뜀
+            if (m_dictGuiScenes.ContainsKey(strPrefabName)) continue;
+
+            // Canvas 하위에 이미 같은 이름의 오브젝트가 존재하는지 확인
+            Transform trExistingChild = trCanvas.Find(strPrefabName);
+            GuiSceneBase cViewInstance = null;
+
+            if (trExistingChild != null)
+            {
+                cViewInstance = trExistingChild.GetComponent<GuiSceneBase>();
+            }
+
+            if (cViewInstance == null)
+            {
+                cViewInstance = Instantiate(prefabScene, trCanvas);
+                cViewInstance.gameObject.name = strPrefabName;
+            }
+
+            AddGuiSceneView(cViewInstance);
+        }
+    }
+
+    /// <summary>
+    /// 생성된 GUI 씬 객체를 별도의 뷰 리스트(m_listSceneViews)에 추가하고 프라이빗 딕셔너리에 등록합니다.
+    /// </summary>
+    public void AddGuiSceneView(GuiSceneBase _cSceneView)
+    {
+        if (_cSceneView == null) return;
+
+        if (!m_listSceneViews.Contains(_cSceneView))
+        {
+            m_listSceneViews.Add(_cSceneView);
+        }
+
+        RegisterViewToDictionary(_cSceneView);
+    }
+
+    /// <summary>
+    /// 뷰 객체를 오브젝트명(SceneName) 기반 프라이빗 딕셔너리에 등록하고 컨텍스트(this)로 초기화합니다.
+    /// </summary>
+    private void RegisterViewToDictionary(GuiSceneBase _cSceneView)
+    {
+        if (_cSceneView == null) return;
+
+        string strKey = _cSceneView.SceneName;
+        m_dictGuiScenes[strKey] = _cSceneView;
+        _cSceneView.Initialize(this);
+    }
+
+    /// <summary>
+    /// 프라이빗 딕셔너리에서 타입(T)을 기반으로 GUI 씬 인터페이스를 조회합니다.
+    /// 프리팹 목록에서 해당 타입의 이름을 가져와 프라이빗 딕셔너리에서 조회합니다.
+    /// </summary>
+    public T GetGuiScene<T>() where T : class, IGuiScene
+    {
+        foreach (KeyValuePair<string, IGuiScene> kvp in m_dictGuiScenes)
+        {
+            if (kvp.Value is T cTargetScene)
+            {
+                return cTargetScene;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 프라이빗 딕셔너리에서 오브젝트명을 통해 특정 타입의 GUI 씬 인터페이스를 조회합니다.
+    /// </summary>
+    public T GetGuiScene<T>(string _strSceneName) where T : class, IGuiScene
+    {
+        if (string.IsNullOrEmpty(_strSceneName)) return null;
+
+        if (m_dictGuiScenes.TryGetValue(_strSceneName, out IGuiScene cScene))
+        {
+            return cScene as T;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// GUIManager가 소유하는 GuiPopupManager를 확보 및 초기화합니다.
+    /// </summary>
+    private void InitializePopupManager()
+    {
+        if (m_cPopupManager == null)
+        {
+            m_cPopupManager = GetComponent<GuiPopupManager>();
+            if (m_cPopupManager == null)
+            {
+                m_cPopupManager = FindFirstObjectByType<GuiPopupManager>();
+            }
+            if (m_cPopupManager == null)
+            {
+                m_cPopupManager = gameObject.AddComponent<GuiPopupManager>();
+            }
+        }
+
+        m_cPopupManager.Initialize(this, m_canvasMain);
     }
 
     private void Update()
     {
-        // ESC 키로 인게임 <-> 일시정지 토글
+        // ESC 키 우선순위: 열려 있는 비활성화 팝업이 있으면 최상단 팝업 먼저 닫기
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            if (m_eCurrentState == EGuiState.InGame || m_eCurrentState == EGuiState.Pause)
+            if (m_cPopupManager != null && m_cPopupManager.CloseTopBlockingPopup())
             {
-                TogglePause();
+                PlayUiClickSound();
+                return;
+            }
+
+            if (m_strCurrentSceneName == InGameSceneName)
+            {
+                PauseGame();
             }
         }
 
         // 인게임 중 테스트용 데미지/게임오버 단축키 (K키: 자가 피격 테스트)
-        if (m_eCurrentState == EGuiState.InGame && Input.GetKeyDown(KeyCode.K))
+        if (IsGameplayActive && Input.GetKeyDown(KeyCode.K))
         {
             if (GameManager.s_cInstance != null && GameManager.s_cInstance.CurrentPlayer != null)
             {
@@ -215,21 +309,63 @@ public class GUIManager : MonoBehaviour
         }
     }
 
-    // ==================== 화면 전환 제어 함수 ====================
+    // ==================== 화면 전환 및 UI 이벤트 핸들러 (컨텍스트 함수) ====================
 
     /// <summary>
-    /// 지정한 GUI 상태로 화면을 전환하고 Time.timeScale 및 마우스 커서 상태를 제어합니다.
+    /// 프라이빗 딕셔너리(m_dictGuiScenes)에서 오브젝트명을 기준으로 화면을 전환하고
+    /// Time.timeScale 및 마우스 커서 상태를 제어합니다.
     /// </summary>
-    public void SetGuiState(EGuiState _eNewState)
+    public void SetGuiScene(string _strSceneName)
     {
-        m_eCurrentState = _eNewState;
+        if (!m_bIsInitialized)
+        {
+            Initialize();
+        }
 
-        if (m_objTitlePanel) m_objTitlePanel.SetActive(_eNewState == EGuiState.Title);
-        if (m_objInGamePanel) m_objInGamePanel.SetActive(_eNewState == EGuiState.InGame);
-        if (m_objPausePanel) m_objPausePanel.SetActive(_eNewState == EGuiState.Pause);
-        if (m_objGameOverPanel) m_objGameOverPanel.SetActive(_eNewState == EGuiState.GameOver);
+        if (string.IsNullOrEmpty(_strSceneName)) return;
 
-        bool bIsInGame = (_eNewState == EGuiState.InGame);
+        m_strCurrentSceneName = _strSceneName;
+
+        // 프라이빗 딕셔너리를 통해 모든 등록된 GUI 씬에 접근하여 진입/퇴장 처리
+        foreach (KeyValuePair<string, IGuiScene> kvp in m_dictGuiScenes)
+        {
+            IGuiScene cScene = kvp.Value;
+            if (cScene == null) continue;
+
+            if (kvp.Key == _strSceneName)
+            {
+                cScene.OnEnter();
+            }
+            else
+            {
+                cScene.OnExit();
+            }
+        }
+
+        if (m_cPopupManager != null)
+        {
+            m_cPopupManager.BringPopupRootToFront();
+        }
+
+        ApplySceneAndPopupState();
+        SyncAudioUiControls();
+    }
+
+    /// <summary>
+    /// 팝업 열림/닫힘 시 호출되며, 밑에 있는 GUI 씬 화면은 그대로 유지한 채 시간/커서/입력 상태만 갱신합니다.
+    /// </summary>
+    public void OnPopupStateChanged()
+    {
+        ApplySceneAndPopupState();
+    }
+
+    /// <summary>
+    /// 현재 GUI 씬과 비활성화 팝업(BlocksGameplay) 유무를 종합해 Time.timeScale 및 커서 상태를 제어합니다.
+    /// </summary>
+    private void ApplySceneAndPopupState()
+    {
+        bool bIsInGameScene = (!string.IsNullOrEmpty(m_strCurrentSceneName) && m_strCurrentSceneName == InGameSceneName);
+        bool bCanPlay = bIsInGameScene && !HasBlockingPopupOpen;
 
         // 3D 탄약 HUD 텍스트 가시성 연동
         if (GameManager.s_cInstance != null && GameManager.s_cInstance.HudBullets != null)
@@ -237,11 +373,11 @@ public class GUIManager : MonoBehaviour
             MeshRenderer mrHud = GameManager.s_cInstance.HudBullets.GetComponent<MeshRenderer>();
             if (mrHud != null)
             {
-                mrHud.enabled = bIsInGame;
+                mrHud.enabled = bIsInGameScene;
             }
         }
 
-        if (bIsInGame)
+        if (bCanPlay)
         {
             Time.timeScale = 1f;
             Cursor.lockState = CursorLockMode.Locked;
@@ -255,71 +391,91 @@ public class GUIManager : MonoBehaviour
             Cursor.visible = true;
             StopLoopingCharacterSounds();
         }
-
-        SyncAudioUiControls();
     }
 
     /// <summary>
-    /// [시작 화면] -> [인게임] 전환
+    /// [시작 화면] -> [인게임] 전환 이벤트 핸들러
     /// </summary>
     public void StartGame()
     {
         PlayUiClickSound();
-        SetGuiState(EGuiState.InGame);
+        SetGuiScene(InGameSceneName);
     }
 
     /// <summary>
-    /// 인게임 <-> 일시정지 토글
+    /// 인게임 <-> 일시정지 팝업 토글
     /// </summary>
     public void TogglePause()
     {
-        if (m_eCurrentState == EGuiState.InGame)
-        {
-            PauseGame();
-        }
-        else if (m_eCurrentState == EGuiState.Pause)
+        PauseGuiScene cPausePopup = m_cPopupManager != null ? m_cPopupManager.GetPopup<PauseGuiScene>() : null;
+        if (cPausePopup != null && cPausePopup.IsActive)
         {
             ResumeGame();
         }
+        else if (m_strCurrentSceneName == InGameSceneName)
+        {
+            PauseGame();
+        }
     }
 
     /// <summary>
-    /// [인게임] -> [일시정지] 전환
+    /// [인게임] -> [일시정지] 팝업 오픈 이벤트 핸들러 (인게임 UI를 유지한 채 팝업 루트 위에 덮어 표시)
     /// </summary>
     public void PauseGame()
     {
-        if (m_eCurrentState != EGuiState.InGame) return;
+        if (m_strCurrentSceneName != InGameSceneName) return;
+
+        PauseGuiScene cPausePopup = m_cPopupManager != null ? m_cPopupManager.GetPopup<PauseGuiScene>() : null;
+        if (cPausePopup != null && cPausePopup.IsActive) return;
+
         PlayUiClickSound();
-        SetGuiState(EGuiState.Pause);
+        if (m_cPopupManager != null)
+        {
+            m_cPopupManager.OpenPopup<PauseGuiScene>();
+        }
     }
 
     /// <summary>
-    /// [일시정지] -> [인게임] 복귀
+    /// [일시정지] -> [인게임] 복귀 이벤트 핸들러 (일시정지 팝업 닫기)
     /// </summary>
     public void ResumeGame()
     {
-        if (m_eCurrentState != EGuiState.Pause) return;
+        PauseGuiScene cPausePopup = m_cPopupManager != null ? m_cPopupManager.GetPopup<PauseGuiScene>() : null;
+        if (cPausePopup == null || !cPausePopup.IsActive) return;
+
         PlayUiClickSound();
-        SetGuiState(EGuiState.InGame);
+        m_cPopupManager.ClosePopup<PauseGuiScene>();
     }
 
     /// <summary>
-    /// 플레이어 사망 시 [게임오버] 화면으로 전환
+    /// 플레이어 사망 시 열려 있는 팝업을 닫고 프라이빗 딕셔너리에서 게임오버 씬을 찾아 전환합니다.
     /// </summary>
     public void ShowGameOver(string _strReason = "MISSION FAILED - YOU DIED")
     {
-        if (m_eCurrentState == EGuiState.GameOver) return;
-
-        if (m_txtGameOverMessage != null && !string.IsNullOrEmpty(_strReason))
+        if (!m_bIsInitialized)
         {
-            m_txtGameOverMessage.text = _strReason;
+            Initialize();
         }
 
-        SetGuiState(EGuiState.GameOver);
+        string strGameOverName = GameOverSceneName;
+        if (m_strCurrentSceneName == strGameOverName) return;
+
+        if (m_cPopupManager != null)
+        {
+            m_cPopupManager.CloseAllPopups();
+        }
+
+        GameOverGuiScene cGameOver = GetGuiScene<GameOverGuiScene>();
+        if (cGameOver != null)
+        {
+            cGameOver.ShowGameOver(_strReason);
+        }
+
+        SetGuiScene(strGameOverName);
     }
 
     /// <summary>
-    /// 현재 씬을 재시작하고 즉시 인게임 상태로 진입합니다.
+    /// 현재 씬을 재시작하고 즉시 인게임 상태로 진입하는 이벤트 핸들러
     /// </summary>
     public void RestartGame()
     {
@@ -331,7 +487,92 @@ public class GUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 현재 씬을 초기 상태로 리로드하고 시작(타이틀) 화면으로 돌아갑니다.
+    /// 음량 조절 팝업(비활성화 팝업)을 현재 GUI 화면 위에 띄웁니다.
+    /// </summary>
+    public void OpenAudioSettingPopup()
+    {
+        if (!m_bIsInitialized)
+        {
+            Initialize();
+        }
+
+        PlayUiClickSound();
+        if (m_cPopupManager != null)
+        {
+            m_cPopupManager.OpenPopup<AudioSettingPopup>();
+        }
+    }
+
+    /// <summary>
+    /// 타이틀 돌아가기 전 확인 팝업을 현재 GUI 화면 위에 띄웁니다.
+    /// </summary>
+    public void RequestReturnToTitle()
+    {
+        if (!m_bIsInitialized)
+        {
+            Initialize();
+        }
+
+        PlayUiClickSound();
+        if (m_cPopupManager != null)
+        {
+            ConfirmPopup cConfirm = m_cPopupManager.OpenPopup<ConfirmPopup>();
+            if (cConfirm != null)
+            {
+                cConfirm.Setup("RETURN TO TITLE", "Return to the title screen?", ReturnToTitle);
+                return;
+            }
+        }
+
+        ReturnToTitle();
+    }
+
+    /// <summary>
+    /// 게임 종료 전 확인 팝업을 현재 GUI 화면 위에 띄웁니다.
+    /// </summary>
+    public void RequestQuitGame()
+    {
+        if (!m_bIsInitialized)
+        {
+            Initialize();
+        }
+
+        PlayUiClickSound();
+        if (m_cPopupManager != null)
+        {
+            ConfirmPopup cConfirm = m_cPopupManager.OpenPopup<ConfirmPopup>();
+            if (cConfirm != null)
+            {
+                cConfirm.Setup("QUIT GAME", "Are you sure you want to quit the game?", QuitGame);
+                return;
+            }
+        }
+
+        QuitGame();
+    }
+
+    /// <summary>
+    /// 게임 플레이를 방해하지 않는 활성화 팝업(토스트 알림)을 화면 위에 띄웁니다.
+    /// </summary>
+    public void ShowNoticeToast(string _strMessage, float _fDuration = 2.5f)
+    {
+        if (!m_bIsInitialized)
+        {
+            Initialize();
+        }
+
+        if (m_cPopupManager != null)
+        {
+            NoticeToastPopup cToast = m_cPopupManager.OpenPopup<NoticeToastPopup>();
+            if (cToast != null)
+            {
+                cToast.ShowMessage(_strMessage, _fDuration);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 현재 씬을 초기 상태로 리로드하고 시작(타이틀) 화면으로 돌아가는 이벤트 핸들러
     /// </summary>
     public void ReturnToTitle()
     {
@@ -343,7 +584,7 @@ public class GUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 게임을 종료합니다 (에디터 플레이 모드 종료 및 빌드 애플리케이션 종료 지원).
+    /// 게임을 종료하는 이벤트 핸들러
     /// </summary>
     public void QuitGame()
     {
@@ -358,11 +599,33 @@ public class GUIManager : MonoBehaviour
 #endif
     }
 
-    // ==================== 사운드 및 시스템 연동 함수 ====================
+    /// <summary>
+    /// BGM 슬라이더 값 변경 UI 이벤트 핸들러
+    /// </summary>
+    public void OnBgmSliderChanged(float _fVolume)
+    {
+        SetBgmVolume(_fVolume);
+    }
 
     /// <summary>
-    /// 배경음악(BGM) 볼륨을 조절합니다 (0.0 ~ 1.0).
+    /// SFX 슬라이더 값 변경 UI 이벤트 핸들러
     /// </summary>
+    public void OnSfxSliderChanged(float _fVolume)
+    {
+        SetSfxVolume(_fVolume);
+    }
+
+    /// <summary>
+    /// 음소거(Mute) 토글 값 변경 UI 이벤트 핸들러
+    /// </summary>
+    public void OnMuteToggleChanged(bool _bMute)
+    {
+        PlayUiClickSound();
+        SetMute(_bMute);
+    }
+
+    // ==================== 사운드 및 시스템 연동 함수 ====================
+
     public void SetBgmVolume(float _fVolume)
     {
         m_fBgmVolume = Mathf.Clamp01(_fVolume);
@@ -376,9 +639,6 @@ public class GUIManager : MonoBehaviour
         SyncAudioUiControls();
     }
 
-    /// <summary>
-    /// 효과음(SFX) 볼륨을 조절합니다 (0.0 ~ 1.0).
-    /// </summary>
     public void SetSfxVolume(float _fVolume)
     {
         m_fSfxVolume = Mathf.Clamp01(_fVolume);
@@ -388,9 +648,6 @@ public class GUIManager : MonoBehaviour
         SyncAudioUiControls();
     }
 
-    /// <summary>
-    /// 전체 사운드 음소거(Mute) 여부를 설정합니다.
-    /// </summary>
     public void SetMute(bool _bMute)
     {
         m_bIsMuted = _bMute;
@@ -407,9 +664,6 @@ public class GUIManager : MonoBehaviour
         SyncAudioUiControls();
     }
 
-    /// <summary>
-    /// 씬 내 모든 효과음 AudioSource를 탐색하여 원래 볼륨 대비 SFX 볼륨 비율을 적용합니다.
-    /// </summary>
     public void RefreshSfxSources()
     {
         AudioSource[] arrAllSources = FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -477,35 +731,37 @@ public class GUIManager : MonoBehaviour
         }
     }
 
-    // ==================== 인게임 HUD 갱신 함수 ====================
+    // ==================== 인게임 HUD 갱신 함수 (프라이빗 딕셔너리 액세스) ====================
 
     public void UpdateHpUi(float _fCurrentHp, float _fMaxHp)
     {
-        float fSafeMax = Mathf.Max(1f, _fMaxHp);
-        float fRatio = Mathf.Clamp01(_fCurrentHp / fSafeMax);
-
-        if (m_txtInGameHp != null)
+        if (!m_bIsInitialized)
         {
-            m_txtInGameHp.text = $"HP: {Mathf.CeilToInt(_fCurrentHp)} / {Mathf.CeilToInt(fSafeMax)}";
+            Initialize();
         }
 
-        if (m_imgInGameHpFill != null)
+        InGameGuiScene cInGame = GetGuiScene<InGameGuiScene>();
+        if (cInGame != null)
         {
-            RectTransform rtFill = m_imgInGameHpFill.rectTransform;
-            rtFill.anchorMax = new Vector2(fRatio, 1f);
-            m_imgInGameHpFill.color = Color.Lerp(new Color(0.9f, 0.15f, 0.15f, 0.9f), new Color(0.2f, 0.85f, 0.35f, 0.9f), fRatio);
+            cInGame.UpdateHp(_fCurrentHp, _fMaxHp);
         }
     }
 
     public void UpdateAmmoUi(string _strWeaponName, float _fBulletsInGun, float _fBulletsTotal)
     {
-        if (m_txtInGameAmmo != null)
+        if (!m_bIsInitialized)
         {
-            m_txtInGameAmmo.text = $"AMMO: {Mathf.RoundToInt(_fBulletsInGun)} / {Mathf.RoundToInt(_fBulletsTotal)}";
+            Initialize();
+        }
+
+        InGameGuiScene cInGame = GetGuiScene<InGameGuiScene>();
+        if (cInGame != null)
+        {
+            cInGame.UpdateAmmo(Mathf.RoundToInt(_fBulletsInGun), Mathf.RoundToInt(_fBulletsTotal));
         }
     }
 
-    // ==================== 내부 초기화 및 UI 자동 구축 ====================
+    // ==================== 내부 오디오 설정 및 동기화 ====================
 
     private void LoadAudioPreferences()
     {
@@ -517,128 +773,20 @@ public class GUIManager : MonoBehaviour
 
     private void SyncAudioUiControls()
     {
-        m_bSuppressUiCallbacks = true;
-
-        int nBgmPercent = Mathf.RoundToInt(m_fBgmVolume * 100f);
-        int nSfxPercent = Mathf.RoundToInt(m_fSfxVolume * 100f);
-
-        if (m_sliderTitleBgm) m_sliderTitleBgm.value = m_fBgmVolume;
-        if (m_sliderPauseBgm) m_sliderPauseBgm.value = m_fBgmVolume;
-
-        if (m_sliderTitleSfx) m_sliderTitleSfx.value = m_fSfxVolume;
-        if (m_sliderPauseSfx) m_sliderPauseSfx.value = m_fSfxVolume;
-
-        if (m_toggleTitleMute) m_toggleTitleMute.isOn = m_bIsMuted;
-        if (m_togglePauseMute) m_togglePauseMute.isOn = m_bIsMuted;
-
-        if (m_txtTitleBgmValue) m_txtTitleBgmValue.text = $"BGM Volume: {nBgmPercent}%";
-        if (m_txtPauseBgmValue) m_txtPauseBgmValue.text = $"BGM Volume: {nBgmPercent}%";
-
-        if (m_txtTitleSfxValue) m_txtTitleSfxValue.text = $"SFX Volume: {nSfxPercent}%";
-        if (m_txtPauseSfxValue) m_txtPauseSfxValue.text = $"SFX Volume: {nSfxPercent}%";
-
-        m_bSuppressUiCallbacks = false;
-    }
-
-    private void BindUiEvents()
-    {
-        if (m_btnTitleStart)
+        // 프라이빗 딕셔너리(m_dictGuiScenes)에 등록된 객체 중 IAudioSyncableGui 구현체에 일괄 동기화
+        foreach (KeyValuePair<string, IGuiScene> kvp in m_dictGuiScenes)
         {
-            m_btnTitleStart.onClick.RemoveAllListeners();
-            m_btnTitleStart.onClick.AddListener(StartGame);
-        }
-        if (m_btnTitleQuit)
-        {
-            m_btnTitleQuit.onClick.RemoveAllListeners();
-            m_btnTitleQuit.onClick.AddListener(QuitGame);
-        }
-        if (m_sliderTitleBgm)
-        {
-            m_sliderTitleBgm.onValueChanged.RemoveAllListeners();
-            m_sliderTitleBgm.onValueChanged.AddListener(OnBgmSliderChanged);
-        }
-        if (m_sliderTitleSfx)
-        {
-            m_sliderTitleSfx.onValueChanged.RemoveAllListeners();
-            m_sliderTitleSfx.onValueChanged.AddListener(OnSfxSliderChanged);
-        }
-        if (m_toggleTitleMute)
-        {
-            m_toggleTitleMute.onValueChanged.RemoveAllListeners();
-            m_toggleTitleMute.onValueChanged.AddListener(OnMuteToggleChanged);
+            if (kvp.Value is IAudioSyncableGui cAudioSyncable)
+            {
+                cAudioSyncable.SyncAudioSettings(m_fBgmVolume, m_fSfxVolume, m_bIsMuted);
+            }
         }
 
-        if (m_btnPauseResume)
+        // 팝업 관리자(m_cPopupManager)에 등록된 팝업 중 IAudioSyncableGui 구현체에도 동기화
+        if (m_cPopupManager != null)
         {
-            m_btnPauseResume.onClick.RemoveAllListeners();
-            m_btnPauseResume.onClick.AddListener(ResumeGame);
+            m_cPopupManager.SyncAudioPopups(m_fBgmVolume, m_fSfxVolume, m_bIsMuted);
         }
-        if (m_btnPauseRestart)
-        {
-            m_btnPauseRestart.onClick.RemoveAllListeners();
-            m_btnPauseRestart.onClick.AddListener(RestartGame);
-        }
-        if (m_btnPauseTitle)
-        {
-            m_btnPauseTitle.onClick.RemoveAllListeners();
-            m_btnPauseTitle.onClick.AddListener(ReturnToTitle);
-        }
-        if (m_btnPauseQuit)
-        {
-            m_btnPauseQuit.onClick.RemoveAllListeners();
-            m_btnPauseQuit.onClick.AddListener(QuitGame);
-            m_btnPauseQuit.
-        }
-        if (m_sliderPauseBgm)
-        {
-            m_sliderPauseBgm.onValueChanged.RemoveAllListeners();
-            m_sliderPauseBgm.onValueChanged.AddListener(OnBgmSliderChanged);
-        }
-        if (m_sliderPauseSfx)
-        {
-            m_sliderPauseSfx.onValueChanged.RemoveAllListeners();
-            m_sliderPauseSfx.onValueChanged.AddListener(OnSfxSliderChanged);
-        }
-        if (m_togglePauseMute)
-        {
-            m_togglePauseMute.onValueChanged.RemoveAllListeners();
-            m_togglePauseMute.onValueChanged.AddListener(OnMuteToggleChanged);
-        }
-
-        if (m_btnGameOverRestart)
-        {
-            m_btnGameOverRestart.onClick.RemoveAllListeners();
-            m_btnGameOverRestart.onClick.AddListener(RestartGame);
-        }
-        if (m_btnGameOverTitle)
-        {
-            m_btnGameOverTitle.onClick.RemoveAllListeners();
-            m_btnGameOverTitle.onClick.AddListener(ReturnToTitle);
-        }
-        if (m_btnGameOverQuit)
-        {
-            m_btnGameOverQuit.onClick.RemoveAllListeners();
-            m_btnGameOverQuit.onClick.AddListener(QuitGame);
-        }
-    }
-
-    private void OnBgmSliderChanged(float _fVal)
-    {
-        if (m_bSuppressUiCallbacks) return;
-        SetBgmVolume(_fVal);
-    }
-
-    private void OnSfxSliderChanged(float _fVal)
-    {
-        if (m_bSuppressUiCallbacks) return;
-        SetSfxVolume(_fVal);
-    }
-
-    private void OnMuteToggleChanged(bool _bMute)
-    {
-        if (m_bSuppressUiCallbacks) return;
-        PlayUiClickSound();
-        SetMute(_bMute);
     }
 
     private void EnsureAudioSources()
@@ -701,9 +849,6 @@ public class GUIManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 외부 BGM 오디오 파일이 없을 때도 BGM 볼륨 조절을 즉시 체감할 수 있도록 앰비언트 루프 클립을 생성합니다.
-    /// </summary>
     private AudioClip CreateProceduralBgmClip()
     {
         int nSampleRate = 22050;
@@ -720,7 +865,6 @@ public class GUIManager : MonoBehaviour
             {
                 fSignal += Mathf.Sin(2f * Mathf.PI * arrChordFreqs[c] * fTime) * 0.06f;
             }
-            // 부드러운 볼륨 맥동(LFO)
             float fLfo = 0.75f + 0.25f * Mathf.Sin(2f * Mathf.PI * 0.5f * fTime);
             arrSamples[i] = fSignal * fLfo;
         }
@@ -733,7 +877,7 @@ public class GUIManager : MonoBehaviour
     private AudioClip CreateProceduralClickClip()
     {
         int nSampleRate = 22050;
-        int nTotalSamples = nSampleRate / 20; // 0.05초
+        int nTotalSamples = nSampleRate / 20;
         float[] arrSamples = new float[nTotalSamples];
 
         for (int i = 0; i < nTotalSamples; i++)
@@ -746,394 +890,5 @@ public class GUIManager : MonoBehaviour
         AudioClip clipClick = AudioClip.Create("ProceduralUiClick", nTotalSamples, 1, nSampleRate, false);
         clipClick.SetData(arrSamples, 0);
         return clipClick;
-    }
-
-    // ==================== UI 계층 확인 및 생성 ====================
-
-    [ContextMenu("Generate GUI Hierarchy In Scene")]
-    public void EnsureUiHierarchy()
-    {
-        if (m_canvasMain == null)
-        {
-            m_canvasMain = FindFirstObjectByType<Canvas>();
-            if (m_canvasMain == null)
-            {
-                GameObject objCanvas = new GameObject("Canvas");
-                m_canvasMain = objCanvas.AddComponent<Canvas>();
-                m_canvasMain.renderMode = RenderMode.ScreenSpaceOverlay;
-                objCanvas.AddComponent<UnityEngine.UI.CanvasScaler>();
-                objCanvas.AddComponent<UnityEngine.UI.GraphicRaycaster>();
-            }
-        }
-
-        UnityEngine.UI.CanvasScaler cScaler = m_canvasMain.GetComponent<UnityEngine.UI.CanvasScaler>();
-        if (cScaler != null)
-        {
-            cScaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            cScaler.referenceResolution = new Vector2(1920f, 1080f);
-            cScaler.matchWidthOrHeight = 0.5f;
-        }
-
-        if (FindFirstObjectByType<EventSystem>() == null)
-        {
-            GameObject objEventSystem = new GameObject("EventSystem");
-            objEventSystem.AddComponent<EventSystem>();
-            objEventSystem.AddComponent<StandaloneInputModule>();
-        }
-
-        Transform trCanvas = m_canvasMain.transform;
-
-        // 기존 씬의 안내 텍스트(Text (TMP))가 Canvas 직속 자식으로 있으면 InGamePanel 내부로 편입
-        Transform trExistingTmp = trCanvas.Find("Text (TMP)");
-
-        if (m_objInGamePanel == null)
-        {
-            Transform trFound = trCanvas.Find("InGamePanel");
-            m_objInGamePanel = trFound != null ? trFound.gameObject : BuildInGamePanel(trCanvas, trExistingTmp);
-        }
-
-        if (m_objTitlePanel == null)
-        {
-            Transform trFound = trCanvas.Find("TitlePanel");
-            m_objTitlePanel = trFound != null ? trFound.gameObject : BuildTitlePanel(trCanvas);
-        }
-
-        if (m_objPausePanel == null)
-        {
-            Transform trFound = trCanvas.Find("PausePanel");
-            m_objPausePanel = trFound != null ? trFound.gameObject : BuildPausePanel(trCanvas);
-        }
-
-        if (m_objGameOverPanel == null)
-        {
-            Transform trFound = trCanvas.Find("GameOverPanel");
-            m_objGameOverPanel = trFound != null ? trFound.gameObject : BuildGameOverPanel(trCanvas);
-        }
-    }
-
-    private GameObject BuildInGamePanel(Transform _trCanvas, Transform _trExistingGuide)
-    {
-        GameObject objPanel = CreateFullScreenPanel(_trCanvas, "InGamePanel", new Color(0f, 0f, 0f, 0f), false);
-        RectTransform rtPanel = objPanel.GetComponent<RectTransform>();
-
-        if (_trExistingGuide != null)
-        {
-            _trExistingGuide.SetParent(rtPanel, false);
-            m_txtInGameGuide = _trExistingGuide.GetComponent<TextMeshProUGUI>();
-            if (m_txtInGameGuide != null)
-            {
-                m_txtInGameGuide.raycastTarget = false;
-                m_txtInGameGuide.fontSize = 20f;
-                m_txtInGameGuide.text = "Move: WASD | Reload: R | Melee: Q | Crouch: C\nFire: LMB | Aim: RMB | Switch Gun: E / 1,2\n[ESC] Pause & Audio Menu | [K] Test Damage";
-            }
-        }
-        else
-        {
-            m_txtInGameGuide = CreateTmpText(rtPanel, "GuideText",
-                "Move: WASD | Reload: R | Melee: Q | Crouch: C\nFire: LMB | Aim: RMB | Switch Gun: E / 1,2\n[ESC] Pause & Audio Menu | [K] Test Damage",
-                20, TextAlignmentOptions.TopLeft, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -24f), new Vector2(700f, 120f));
-        }
-
-        // 좌측 하단 HP 바 컨테이너
-        GameObject objHpBg = CreateUiBox(rtPanel, "HpBarBackground", new Color(0.1f, 0.1f, 0.12f, 0.8f),
-            new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(30f, 30f), new Vector2(340f, 42f));
-
-        GameObject objHpFill = CreateUiBox(objHpBg.GetComponent<RectTransform>(), "HpBarFill", new Color(0.2f, 0.85f, 0.35f, 0.9f),
-            new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-8f, -8f));
-        m_imgInGameHpFill = objHpFill.GetComponent<UnityEngine.UI.Image>();
-
-        m_txtInGameHp = CreateTmpText(objHpBg.GetComponent<RectTransform>(), "HpText", "HP: 100 / 100",
-            22, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-
-        // 우측 하단 탄약 표시
-        GameObject objAmmoBg = CreateUiBox(rtPanel, "AmmoBackground", new Color(0.1f, 0.1f, 0.12f, 0.8f),
-            new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-30f, 30f), new Vector2(300f, 42f));
-
-        m_txtInGameAmmo = CreateTmpText(objAmmoBg.GetComponent<RectTransform>(), "AmmoText", "AMMO: -- / --",
-            22, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-
-        return objPanel;
-    }
-
-    private GameObject BuildTitlePanel(Transform _trCanvas)
-    {
-        GameObject objPanel = CreateFullScreenPanel(_trCanvas, "TitlePanel", new Color(0.05f, 0.07f, 0.1f, 0.92f), true);
-        RectTransform rtPanel = objPanel.GetComponent<RectTransform>();
-
-        GameObject objCard = CreateUiBox(rtPanel, "TitleCard", new Color(0.12f, 0.15f, 0.2f, 0.96f),
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 620f));
-        RectTransform rtCard = objCard.GetComponent<RectTransform>();
-
-        CreateTmpText(rtCard, "TitleHeader", "EASY FPS COMBAT",
-            44, TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -35f), new Vector2(500f, 60f));
-
-        CreateTmpText(rtCard, "TitleSubHeader", "SYSTEM & AUDIO CONTROLLER READY",
-            18, TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -90f), new Vector2(480f, 30f));
-
-        m_btnTitleStart = CreateButton(rtCard, "StartGameButton", "START GAME",
-            new Vector2(0f, 145f), new Vector2(380f, 58f), new Color(0.18f, 0.62f, 0.35f, 1f));
-
-        m_txtTitleBgmValue = CreateTmpText(rtCard, "TitleBgmLabel", "BGM Volume: 50%",
-            20, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 65f), new Vector2(380f, 28f));
-
-        m_sliderTitleBgm = CreateSlider(rtCard, "TitleBgmSlider", new Vector2(0f, 32f), new Vector2(380f, 26f), m_fBgmVolume);
-
-        m_txtTitleSfxValue = CreateTmpText(rtCard, "TitleSfxLabel", "SFX Volume: 80%",
-            20, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -15f), new Vector2(380f, 28f));
-
-        m_sliderTitleSfx = CreateSlider(rtCard, "TitleSfxSlider", new Vector2(0f, -48f), new Vector2(380f, 26f), m_fSfxVolume);
-
-        m_toggleTitleMute = CreateToggle(rtCard, "TitleMuteToggle", "Mute All Audio", new Vector2(0f, -105f), new Vector2(380f, 36f), m_bIsMuted);
-
-        m_btnTitleQuit = CreateButton(rtCard, "QuitGameButton", "QUIT GAME",
-            new Vector2(0f, -195f), new Vector2(380f, 54f), new Color(0.68f, 0.2f, 0.2f, 1f));
-
-        return objPanel;
-    }
-
-    private GameObject BuildPausePanel(Transform _trCanvas)
-    {
-        GameObject objPanel = CreateFullScreenPanel(_trCanvas, "PausePanel", new Color(0.03f, 0.04f, 0.06f, 0.85f), true);
-        RectTransform rtPanel = objPanel.GetComponent<RectTransform>();
-
-        GameObject objCard = CreateUiBox(rtPanel, "PauseCard", new Color(0.12f, 0.15f, 0.2f, 0.96f),
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 680f));
-        RectTransform rtCard = objCard.GetComponent<RectTransform>();
-
-        CreateTmpText(rtCard, "PauseHeader", "PAUSED",
-            42, TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -30f), new Vector2(460f, 55f));
-
-        m_txtPauseBgmValue = CreateTmpText(rtCard, "PauseBgmLabel", "BGM Volume: 50%",
-            20, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 195f), new Vector2(380f, 28f));
-
-        m_sliderPauseBgm = CreateSlider(rtCard, "PauseBgmSlider", new Vector2(0f, 162f), new Vector2(380f, 26f), m_fBgmVolume);
-
-        m_txtPauseSfxValue = CreateTmpText(rtCard, "PauseSfxLabel", "SFX Volume: 80%",
-            20, TextAlignmentOptions.Left, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 115f), new Vector2(380f, 28f));
-
-        m_sliderPauseSfx = CreateSlider(rtCard, "PauseSfxSlider", new Vector2(0f, 82f), new Vector2(380f, 26f), m_fSfxVolume);
-
-        m_togglePauseMute = CreateToggle(rtCard, "PauseMuteToggle", "Mute All Audio", new Vector2(0f, 30f), new Vector2(380f, 36f), m_bIsMuted);
-
-        m_btnPauseResume = CreateButton(rtCard, "ResumeButton", "RESUME (ESC)",
-            new Vector2(0f, -35f), new Vector2(380f, 52f), new Color(0.18f, 0.62f, 0.35f, 1f));
-
-        m_btnPauseRestart = CreateButton(rtCard, "RestartButton", "RESTART MISSION",
-            new Vector2(0f, -100f), new Vector2(380f, 52f), new Color(0.24f, 0.45f, 0.72f, 1f));
-
-        m_btnPauseTitle = CreateButton(rtCard, "TitleMenuButton", "RETURN TO TITLE",
-            new Vector2(0f, -165f), new Vector2(380f, 52f), new Color(0.45f, 0.45f, 0.5f, 1f));
-
-        m_btnPauseQuit = CreateButton(rtCard, "PauseQuitButton", "QUIT GAME",
-            new Vector2(0f, -230f), new Vector2(380f, 52f), new Color(0.68f, 0.2f, 0.2f, 1f));
-
-        return objPanel;
-    }
-
-    private GameObject BuildGameOverPanel(Transform _trCanvas)
-    {
-        GameObject objPanel = CreateFullScreenPanel(_trCanvas, "GameOverPanel", new Color(0.18f, 0.02f, 0.02f, 0.9f), true);
-        RectTransform rtPanel = objPanel.GetComponent<RectTransform>();
-
-        GameObject objCard = CreateUiBox(rtPanel, "GameOverCard", new Color(0.12f, 0.08f, 0.08f, 0.96f),
-            new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 500f));
-        RectTransform rtCard = objCard.GetComponent<RectTransform>();
-
-        TextMeshProUGUI txtHeader = CreateTmpText(rtCard, "GameOverHeader", "GAME OVER",
-            52, TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(480f, 65f));
-        txtHeader.color = new Color(1f, 0.25f, 0.25f, 1f);
-
-        m_txtGameOverMessage = CreateTmpText(rtCard, "GameOverReasonText", "MISSION FAILED - YOU DIED",
-            22, TextAlignmentOptions.Center, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -115f), new Vector2(480f, 45f));
-
-        m_btnGameOverRestart = CreateButton(rtCard, "GameOverRestartButton", "RETRY / RESTART",
-            new Vector2(0f, 20f), new Vector2(380f, 56f), new Color(0.18f, 0.62f, 0.35f, 1f));
-
-        m_btnGameOverTitle = CreateButton(rtCard, "GameOverTitleButton", "RETURN TO TITLE",
-            new Vector2(0f, -55f), new Vector2(380f, 56f), new Color(0.35f, 0.4f, 0.5f, 1f));
-
-        m_btnGameOverQuit = CreateButton(rtCard, "GameOverQuitButton", "QUIT GAME",
-            new Vector2(0f, -130f), new Vector2(380f, 56f), new Color(0.68f, 0.2f, 0.2f, 1f));
-
-        return objPanel;
-    }
-
-    // ==================== uGUI 요소 생성 헬퍼 ====================
-
-    private GameObject CreateFullScreenPanel(Transform _trParent, string _strName, Color _sColor, bool _bRaycastTarget)
-    {
-        GameObject objPanel = new GameObject(_strName);
-        objPanel.transform.SetParent(_trParent, false);
-
-        RectTransform rt = objPanel.AddComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = Vector2.zero;
-        rt.sizeDelta = Vector2.zero;
-
-        UnityEngine.UI.Image img = objPanel.AddComponent<UnityEngine.UI.Image>();
-        img.color = _sColor;
-        img.raycastTarget = _bRaycastTarget;
-
-        return objPanel;
-    }
-
-    private GameObject CreateUiBox(RectTransform _rtParent, string _strName, Color _sColor,
-        Vector2 _vAnchorMin, Vector2 _vAnchorMax, Vector2 _vPivot, Vector2 _vAnchoredPos, Vector2 _vSizeDelta)
-    {
-        GameObject objBox = new GameObject(_strName);
-        objBox.transform.SetParent(_rtParent, false);
-
-        RectTransform rt = objBox.AddComponent<RectTransform>();
-        rt.anchorMin = _vAnchorMin;
-        rt.anchorMax = _vAnchorMax;
-        rt.pivot = _vPivot;
-        rt.anchoredPosition = _vAnchoredPos;
-        rt.sizeDelta = _vSizeDelta;
-
-        UnityEngine.UI.Image img = objBox.AddComponent<UnityEngine.UI.Image>();
-        img.color = _sColor;
-        img.raycastTarget = false;
-
-        return objBox;
-    }
-
-    private TextMeshProUGUI CreateTmpText(RectTransform _rtParent, string _strName, string _strText,
-        float _fFontSize, TextAlignmentOptions _eAlign,
-        Vector2 _vAnchorMin, Vector2 _vAnchorMax, Vector2 _vPivot, Vector2 _vAnchoredPos, Vector2 _vSizeDelta)
-    {
-        GameObject objTxt = new GameObject(_strName);
-        objTxt.transform.SetParent(_rtParent, false);
-
-        RectTransform rt = objTxt.AddComponent<RectTransform>();
-        rt.anchorMin = _vAnchorMin;
-        rt.anchorMax = _vAnchorMax;
-        rt.pivot = _vPivot;
-        rt.anchoredPosition = _vAnchoredPos;
-        rt.sizeDelta = _vSizeDelta;
-
-        TextMeshProUGUI txt = objTxt.AddComponent<TextMeshProUGUI>();
-        txt.text = _strText;
-        txt.fontSize = _fFontSize;
-        txt.alignment = _eAlign;
-        txt.color = Color.white;
-        txt.raycastTarget = false;
-
-        return txt;
-    }
-
-    private UnityEngine.UI.Button CreateButton(RectTransform _rtParent, string _strName, string _strLabel,
-        Vector2 _vAnchoredPos, Vector2 _vSizeDelta, Color _sBgColor)
-    {
-        GameObject objBtn = new GameObject(_strName);
-        objBtn.transform.SetParent(_rtParent, false);
-
-        RectTransform rt = objBtn.AddComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.5f, 0.5f);
-        rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = _vAnchoredPos;
-        rt.sizeDelta = _vSizeDelta;
-
-        UnityEngine.UI.Image img = objBtn.AddComponent<UnityEngine.UI.Image>();
-        img.color = _sBgColor;
-        img.raycastTarget = true;
-
-        UnityEngine.UI.Button btn = objBtn.AddComponent<UnityEngine.UI.Button>();
-        btn.targetGraphic = img;
-
-        TextMeshProUGUI txtLabel = CreateTmpText(rt, "Label", _strLabel, 22f, TextAlignmentOptions.Center,
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        txtLabel.fontStyle = FontStyles.Bold;
-
-        return btn;
-    }
-
-    private UnityEngine.UI.Slider CreateSlider(RectTransform _rtParent, string _strName, Vector2 _vAnchoredPos, Vector2 _vSizeDelta, float _fInitialValue)
-    {
-        GameObject objSlider = new GameObject(_strName);
-        objSlider.transform.SetParent(_rtParent, false);
-
-        RectTransform rtSlider = objSlider.AddComponent<RectTransform>();
-        rtSlider.anchorMin = new Vector2(0.5f, 0.5f);
-        rtSlider.anchorMax = new Vector2(0.5f, 0.5f);
-        rtSlider.pivot = new Vector2(0.5f, 0.5f);
-        rtSlider.anchoredPosition = _vAnchoredPos;
-        rtSlider.sizeDelta = _vSizeDelta;
-
-        // Background
-        GameObject objBg = CreateUiBox(rtSlider, "Background", new Color(0.22f, 0.25f, 0.3f, 1f),
-            new Vector2(0f, 0.25f), new Vector2(1f, 0.75f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        objBg.GetComponent<UnityEngine.UI.Image>().raycastTarget = true;
-
-        // Fill Area
-        GameObject objFillArea = new GameObject("Fill Area");
-        objFillArea.transform.SetParent(rtSlider, false);
-        RectTransform rtFillArea = objFillArea.AddComponent<RectTransform>();
-        rtFillArea.anchorMin = new Vector2(0f, 0.25f);
-        rtFillArea.anchorMax = new Vector2(1f, 0.75f);
-        rtFillArea.offsetMin = new Vector2(5f, 0f);
-        rtFillArea.offsetMax = new Vector2(-5f, 0f);
-
-        GameObject objFill = CreateUiBox(rtFillArea, "Fill", new Color(0.25f, 0.68f, 0.95f, 1f),
-            Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-
-        // Handle Slide Area
-        GameObject objHandleArea = new GameObject("Handle Slide Area");
-        objHandleArea.transform.SetParent(rtSlider, false);
-        RectTransform rtHandleArea = objHandleArea.AddComponent<RectTransform>();
-        rtHandleArea.anchorMin = Vector2.zero;
-        rtHandleArea.anchorMax = Vector2.one;
-        rtHandleArea.offsetMin = new Vector2(10f, 0f);
-        rtHandleArea.offsetMax = new Vector2(-10f, 0f);
-
-        GameObject objHandle = CreateUiBox(rtHandleArea, "Handle", Color.white,
-            new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(20f, 0f));
-        UnityEngine.UI.Image imgHandle = objHandle.GetComponent<UnityEngine.UI.Image>();
-        imgHandle.raycastTarget = true;
-
-        UnityEngine.UI.Slider slider = objSlider.AddComponent<UnityEngine.UI.Slider>();
-        slider.fillRect = objFill.GetComponent<RectTransform>();
-        slider.handleRect = objHandle.GetComponent<RectTransform>();
-        slider.targetGraphic = imgHandle;
-        slider.direction = UnityEngine.UI.Slider.Direction.LeftToRight;
-        slider.minValue = 0f;
-        slider.maxValue = 1f;
-        slider.value = _fInitialValue;
-
-        return slider;
-    }
-
-    private UnityEngine.UI.Toggle CreateToggle(RectTransform _rtParent, string _strName, string _strLabel, Vector2 _vAnchoredPos, Vector2 _vSizeDelta, bool _bInitialState)
-    {
-        GameObject objToggle = new GameObject(_strName);
-        objToggle.transform.SetParent(_rtParent, false);
-
-        RectTransform rtToggle = objToggle.AddComponent<RectTransform>();
-        rtToggle.anchorMin = new Vector2(0.5f, 0.5f);
-        rtToggle.anchorMax = new Vector2(0.5f, 0.5f);
-        rtToggle.pivot = new Vector2(0.5f, 0.5f);
-        rtToggle.anchoredPosition = _vAnchoredPos;
-        rtToggle.sizeDelta = _vSizeDelta;
-
-        GameObject objBg = CreateUiBox(rtToggle, "Background", new Color(0.22f, 0.25f, 0.3f, 1f),
-            new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(30f, 30f));
-        UnityEngine.UI.Image imgBg = objBg.GetComponent<UnityEngine.UI.Image>();
-        imgBg.raycastTarget = true;
-
-        GameObject objCheck = CreateUiBox(objBg.GetComponent<RectTransform>(), "Checkmark", new Color(0.95f, 0.35f, 0.35f, 1f),
-            new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-        UnityEngine.UI.Image imgCheck = objCheck.GetComponent<UnityEngine.UI.Image>();
-
-        CreateTmpText(rtToggle, "Label", _strLabel, 20f, TextAlignmentOptions.Left,
-            new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0f, 0.5f), new Vector2(44f, 0f), new Vector2(-44f, 0f));
-
-        UnityEngine.UI.Toggle toggle = objToggle.AddComponent<UnityEngine.UI.Toggle>();
-        toggle.targetGraphic = imgBg;
-        toggle.graphic = imgCheck;
-        toggle.isOn = _bInitialState;
-
-        return toggle;
     }
 }

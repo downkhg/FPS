@@ -1,0 +1,6 @@
+C:\Users\ww\source\repos\FPS\Project\FPS\obj\Debug\Assembly-CSharp.csproj.AssemblyReference.cache
+C:\Users\ww\source\repos\FPS\Project\FPS\obj\Debug\Assembly-CSharp.csproj.CoreCompileInputs.cache
+C:\Users\ww\source\repos\FPS\Project\FPS\Temp\bin\Debug\Assembly-CSharp.dll
+C:\Users\ww\source\repos\FPS\Project\FPS\Temp\bin\Debug\Assembly-CSharp.pdb
+C:\Users\ww\source\repos\FPS\Project\FPS\obj\Debug\Assembly-CSharp.dll
+C:\Users\ww\source\repos\FPS\Project\FPS\obj\Debug\Assembly-CSharp.pdb
