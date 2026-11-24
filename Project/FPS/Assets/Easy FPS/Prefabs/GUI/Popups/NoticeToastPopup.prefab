@@ -50,6 +50,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1b2c3d4e5f60718293a4b5c6d7e9006, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_ePopupLayer: 0
   m_bBlocksGameplay: 0
   m_txtMessage: {fileID: 8203000000000000024}
   m_fDefaultDuration: 2.5

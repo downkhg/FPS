@@ -2,7 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// 각 GUI 화면(씬) 객체의 공통 제어 인터페이스
-/// enum 하드코딩 대신 오브젝트명(SceneName)을 고유 식별자로 사용합니다.
+/// enum 하드코딩 대신 오브젝트명(SceneName)을 고유 식별자로 사용하며,
+/// 각 씬 상태 객체가 자신의 시간/입력/커서 정책을 직접 선언합니다.
 /// </summary>
 public interface IGuiScene
 {
@@ -15,6 +16,36 @@ public interface IGuiScene
     /// 화면 활성화 여부
     /// </summary>
     bool IsActive { get; }
+
+    /// <summary>
+    /// 게임 시간이 정상적으로 흐르는 플레이 화면 여부 (FPS, RTS 등 true / Title, GameOver 등 false)
+    /// </summary>
+    bool IsPlayableScene { get; }
+
+    /// <summary>
+    /// 1인칭 직접 조작(이동/시점/사격) 입력 허용 여부 (FPS true / RTS, 메뉴 false)
+    /// </summary>
+    bool AllowsDirectFpsInput { get; }
+
+    /// <summary>
+    /// ESC 키 등으로 일시정지 팝업을 열 수 있는지 여부
+    /// </summary>
+    bool CanPause { get; }
+
+    /// <summary>
+    /// 3D 월드 탄약 HUD(HudBullets) 표시 여부
+    /// </summary>
+    bool ShowWorldHudBullets { get; }
+
+    /// <summary>
+    /// 비활성화 팝업이 없을 때 이 화면이 요구하는 마우스 커서 잠금 모드
+    /// </summary>
+    CursorLockMode PreferredCursorLockMode { get; }
+
+    /// <summary>
+    /// 비활성화 팝업이 없을 때 이 화면이 요구하는 마우스 커서 표시 여부
+    /// </summary>
+    bool PreferredCursorVisible { get; }
 
     /// <summary>
     /// 초기화 메서드 (컨텍스트인 GUIManager 참조 전달 및 이벤트 바인딩)

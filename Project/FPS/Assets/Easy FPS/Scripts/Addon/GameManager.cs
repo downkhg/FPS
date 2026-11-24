@@ -35,6 +35,9 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private GUIManager m_cGuiManager;
 
+    [SerializeField]
+    private PlayModeManager m_cPlayModeManager;
+
     public static GameManager s_cInstance;
     public static GameManager instance => s_cInstance;
 
@@ -48,6 +51,7 @@ public class GameManager : MonoBehaviour
     public Player CurrentPlayer => m_cPlayer;
     public Player CurrentNpc => m_cNpc;
     public GUIManager GuiManager => m_cGuiManager;
+    public PlayModeManager PlayModeMgr => m_cPlayModeManager;
 
     private void Awake()
     {
@@ -100,6 +104,14 @@ public class GameManager : MonoBehaviour
             {
                 m_cPlayer.gameObject.AddComponent<PlayerController>();
             }
+
+            // PC를 RTS 모드에서 지휘관 유닛(아군)으로 선택/명령 가능하도록 RtsUnitAgent 확보
+            RtsUnitAgent cPcAgent = m_cPlayer.GetComponent<RtsUnitAgent>();
+            if (cPcAgent == null)
+            {
+                cPcAgent = m_cPlayer.gameObject.AddComponent<RtsUnitAgent>();
+            }
+            cPcAgent.IsAlly = true;
         }
 
         if (m_cNpc)
@@ -122,6 +134,14 @@ public class GameManager : MonoBehaviour
             {
                 m_cNpc.gameObject.AddComponent<AIController>();
             }
+
+            // 기존 씬 NPC에도 RtsUnitAgent 확보 (기본 적대 유닛)
+            RtsUnitAgent cNpcAgent = m_cNpc.GetComponent<RtsUnitAgent>();
+            if (cNpcAgent == null)
+            {
+                cNpcAgent = m_cNpc.gameObject.AddComponent<RtsUnitAgent>();
+                cNpcAgent.IsAlly = false;
+            }
         }
 
         // 디버거가 씬에 없으면 GameManager에 자동 부착
@@ -140,6 +160,21 @@ public class GameManager : MonoBehaviour
             }
         }
         m_cGuiManager.Initialize();
+
+        // PlayModeManager (FPS <-> RTS 전환 코어) 연결 및 초기화
+        if (!m_cPlayModeManager)
+        {
+            m_cPlayModeManager = GetComponent<PlayModeManager>();
+            if (!m_cPlayModeManager)
+            {
+                m_cPlayModeManager = FindFirstObjectByType<PlayModeManager>();
+            }
+            if (!m_cPlayModeManager)
+            {
+                m_cPlayModeManager = gameObject.AddComponent<PlayModeManager>();
+            }
+        }
+        m_cPlayModeManager.Initialize(this);
 
         if (m_cPlayer)
         {

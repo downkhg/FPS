@@ -88,7 +88,11 @@ public class AIController : MonoBehaviour
     void Update()
     {
         if (!m_cNpc) return;
-        if (!GUIManager.CanProcessGameplayInput()) return;
+        if (!GUIManager.CanRunSimulation()) return;
+
+        // RTS 명령(이동/집중 사격/홀드/추종)을 수행 중이면 자율 FSM을 일시 양보
+        RtsUnitAgent cRtsAgent = GetComponent<RtsUnitAgent>();
+        if (cRtsAgent != null && cRtsAgent.HasActiveCommand) return;
 
         // 공격 쿨다운 타이머 감소
         if (m_fAttackTimer > 0f)

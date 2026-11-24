@@ -21,6 +21,27 @@ public class InGameGuiScene : GuiSceneBase
     [SerializeField]
     private TextMeshProUGUI m_txtAmmo;
 
+    private void Reset()
+    {
+        ApplyFpsScenePolicy();
+    }
+
+    public override void Initialize(GUIManager _cManager)
+    {
+        ApplyFpsScenePolicy();
+        base.Initialize(_cManager);
+    }
+
+    private void ApplyFpsScenePolicy()
+    {
+        m_bIsPlayableScene = true;
+        m_bAllowsDirectFpsInput = true;
+        m_bCanPause = true;
+        m_bShowWorldHudBullets = true;
+        m_eCursorLockMode = CursorLockMode.Locked;
+        m_bCursorVisible = false;
+    }
+
     public void UpdateHp(float _fCurrentHp, float _fMaxHp)
     {
         float fSafeMax = Mathf.Max(1f, _fMaxHp);

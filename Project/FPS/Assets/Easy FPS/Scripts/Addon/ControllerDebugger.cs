@@ -37,6 +37,15 @@ public class ControllerDebugger : MonoBehaviour
             m_bShowDebugGUI = !m_bShowDebugGUI;
         }
 
+        // F2 키로 테스트용 RTS UI <-> FPS UI 토글 (플레이 화면에서만 동작)
+        if (m_bShowDebugGUI && Input.GetKeyDown(KeyCode.F2))
+        {
+            if (GUIManager.s_cInstance != null && GUIManager.s_cInstance.IsPlayableSceneActive)
+            {
+                GUIManager.s_cInstance.ToggleRtsTestView();
+            }
+        }
+
         // 레퍼런스가 누락되었으면 재탐색
         if (m_cPlayerController == null || m_cAiController == null)
         {
@@ -83,16 +92,16 @@ public class ControllerDebugger : MonoBehaviour
     void OnGUI()
     {
         if (!m_bShowDebugGUI) return;
-        if (!GUIManager.CanProcessGameplayInput()) return;
+        if (GUIManager.s_cInstance != null && !GUIManager.s_cInstance.IsPlayableSceneActive) return;
 
         InitStyles();
 
         // 상단 안내 바
         GUI.color = Color.white;
-        GUI.Label(new Rect(10, 5, 400, 20), $"[F1] 디버그 GUI On/Off (현재: {(m_bShowDebugGUI ? "ON" : "OFF")})", m_cLabelStyle);
+        GUI.Label(new Rect(10, 5, 620, 20), $"[F1] 디버그 GUI | [Tab / F2] FPS↔RTS 전환 (모드: {PlayModeManager.s_cInstance?.CurrentModeName} / 씬: {GUIManager.s_cInstance?.CurrentSceneName})", m_cLabelStyle);
 
         // 1. 플레이어 컨트롤러 디버그 패널 (화면 좌측)
-        DrawPlayerDebugPanel(new Rect(10, 30, 280, 320));
+        DrawPlayerDebugPanel(new Rect(10, 30, 280, 355));
 
         // 2. AI 컨트롤러 디버그 패널 (화면 우측)
         DrawAIDebugPanel(new Rect(Screen.width - 290, 30, 280, 420));
@@ -155,6 +164,13 @@ public class ControllerDebugger : MonoBehaviour
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Damage(-25)", m_cBtnStyle)) cPlayer?.TakeDamage(25f);
             if (GUILayout.Button("GameOver", m_cBtnStyle)) GUIManager.s_cInstance?.ShowGameOver("DEBUG GAME OVER TRIGGERED");
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            string strRtsBtnLabel = (GUIManager.s_cInstance != null && GUIManager.s_cInstance.CurrentSceneName == GUIManager.s_cInstance.RtsSceneName)
+                ? "FPS UI (Test)"
+                : "RTS UI (Test)";
+            if (GUILayout.Button(strRtsBtnLabel, m_cBtnStyle)) GUIManager.s_cInstance?.ToggleRtsTestView();
             GUILayout.EndHorizontal();
         }
         else

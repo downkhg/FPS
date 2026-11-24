@@ -90,6 +90,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f05, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_ePopupLayer: 1
   m_bBlocksGameplay: 1
   m_btnResume: {fileID: 6568897704759982732}
   m_btnRestart: {fileID: 5921174085857717648}

@@ -27,6 +27,7 @@ public class GUIManager : MonoBehaviour
 
     // 오브젝트명(SceneName)을 키로 하여 모든 런타임 접근을 수행하는 프라이빗 딕셔너리
     private readonly Dictionary<string, IGuiScene> m_dictGuiScenes = new Dictionary<string, IGuiScene>();
+    private IGuiScene m_cCurrentScene;
 
     [Header("GUI Popup Manager")]
     [SerializeField]
@@ -76,12 +77,15 @@ public class GUIManager : MonoBehaviour
 
     public string TitleSceneName => GetPrefabSceneName<TitleGuiScene>();
     public string InGameSceneName => GetPrefabSceneName<InGameGuiScene>();
+    public string RtsSceneName => GetPrefabSceneName<RtsGuiScene>();
     public string GameOverSceneName => GetPrefabSceneName<GameOverGuiScene>();
 
     // ==================== 프로퍼티 ====================
     public string CurrentSceneName => m_strCurrentSceneName;
+    public IGuiScene CurrentScene => m_cCurrentScene;
     public bool HasBlockingPopupOpen => m_cPopupManager != null && m_cPopupManager.HasBlockingPopupOpen;
-    public bool IsGameplayActive => !string.IsNullOrEmpty(m_strCurrentSceneName) && m_strCurrentSceneName == InGameSceneName && !HasBlockingPopupOpen;
+    public bool IsPlayableSceneActive => m_cCurrentScene != null && m_cCurrentScene.IsPlayableScene && !HasBlockingPopupOpen;
+    public bool IsGameplayActive => m_cCurrentScene != null && m_cCurrentScene.AllowsDirectFpsInput && !HasBlockingPopupOpen;
     public GuiPopupManager PopupManager => m_cPopupManager;
     public float BgmVolume => m_fBgmVolume;
     public float SfxVolume => m_fSfxVolume;
@@ -90,6 +94,14 @@ public class GUIManager : MonoBehaviour
     public static bool CanProcessGameplayInput()
     {
         return s_cInstance == null || s_cInstance.IsGameplayActive;
+    }
+
+    /// <summary>
+    /// FPS/RTS를 불문하고 게임 시뮬레이션(AI, RTS 카메라, 유닛 명령 등)이 실행 가능한 상태인지 반환합니다.
+    /// </summary>
+    public static bool CanRunSimulation()
+    {
+        return s_cInstance == null || s_cInstance.IsPlayableSceneActive;
     }
 
     private void Awake()
@@ -293,7 +305,7 @@ public class GUIManager : MonoBehaviour
                 return;
             }
 
-            if (m_strCurrentSceneName == InGameSceneName)
+            if (m_cCurrentScene != null && m_cCurrentScene.CanPause)
             {
                 PauseGame();
             }
@@ -325,6 +337,7 @@ public class GUIManager : MonoBehaviour
         if (string.IsNullOrEmpty(_strSceneName)) return;
 
         m_strCurrentSceneName = _strSceneName;
+        m_cCurrentScene = null;
 
         // 프라이빗 딕셔너리를 통해 모든 등록된 GUI 씬에 접근하여 진입/퇴장 처리
         foreach (KeyValuePair<string, IGuiScene> kvp in m_dictGuiScenes)
@@ -334,6 +347,7 @@ public class GUIManager : MonoBehaviour
 
             if (kvp.Key == _strSceneName)
             {
+                m_cCurrentScene = cScene;
                 cScene.OnEnter();
             }
             else
@@ -344,6 +358,10 @@ public class GUIManager : MonoBehaviour
 
         if (m_cPopupManager != null)
         {
+            // 씬 전환 시 최상단 시스템 경고(System)를 제외한 이전 씬 소속 팝업 레이어 정리
+            m_cPopupManager.ClosePopupsInLayer(EPopupLayer.Modal);
+            m_cPopupManager.ClosePopupsInLayer(EPopupLayer.Menu);
+            m_cPopupManager.ClosePopupsInLayer(EPopupLayer.Active);
             m_cPopupManager.BringPopupRootToFront();
         }
 
@@ -360,12 +378,14 @@ public class GUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 현재 GUI 씬과 비활성화 팝업(BlocksGameplay) 유무를 종합해 Time.timeScale 및 커서 상태를 제어합니다.
+    /// 현재 활성 GUI 씬 상태 객체(m_cCurrentScene)의 정책과 비활성화 팝업 유무를 종합해
+    /// Time.timeScale, 커서 상태, 3D HUD 가시성을 제어합니다.
     /// </summary>
     private void ApplySceneAndPopupState()
     {
-        bool bIsInGameScene = (!string.IsNullOrEmpty(m_strCurrentSceneName) && m_strCurrentSceneName == InGameSceneName);
-        bool bCanPlay = bIsInGameScene && !HasBlockingPopupOpen;
+        bool bIsPlayableScene = (m_cCurrentScene != null && m_cCurrentScene.IsPlayableScene);
+        bool bCanRunTime = bIsPlayableScene && !HasBlockingPopupOpen;
+        bool bShowWorldBullets = (m_cCurrentScene != null && m_cCurrentScene.ShowWorldHudBullets);
 
         // 3D 탄약 HUD 텍스트 가시성 연동
         if (GameManager.s_cInstance != null && GameManager.s_cInstance.HudBullets != null)
@@ -373,15 +393,15 @@ public class GUIManager : MonoBehaviour
             MeshRenderer mrHud = GameManager.s_cInstance.HudBullets.GetComponent<MeshRenderer>();
             if (mrHud != null)
             {
-                mrHud.enabled = bIsInGameScene;
+                mrHud.enabled = bShowWorldBullets;
             }
         }
 
-        if (bCanPlay)
+        if (bCanRunTime)
         {
             Time.timeScale = 1f;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Cursor.lockState = m_cCurrentScene.PreferredCursorLockMode;
+            Cursor.visible = m_cCurrentScene.PreferredCursorVisible;
             RefreshSfxSources();
         }
         else
@@ -394,7 +414,7 @@ public class GUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// [시작 화면] -> [인게임] 전환 이벤트 핸들러
+    /// [시작 화면] -> [인게임(FPS)] 전환 이벤트 핸들러
     /// </summary>
     public void StartGame()
     {
@@ -403,7 +423,70 @@ public class GUIManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 인게임 <-> 일시정지 팝업 토글
+    /// RTS 모드(전술 카메라 + RTS HUD)로 전환합니다.
+    /// </summary>
+    public void SwitchToRtsScene()
+    {
+        PlayUiClickSound();
+        if (PlayModeManager.s_cInstance != null)
+        {
+            PlayModeManager.s_cInstance.SwitchToRts();
+            return;
+        }
+
+        string strRtsName = RtsSceneName;
+        if (!string.IsNullOrEmpty(strRtsName))
+        {
+            SetGuiScene(strRtsName);
+        }
+    }
+
+    /// <summary>
+    /// FPS 모드(1인칭 카메라 + FPS HUD)로 복귀합니다.
+    /// </summary>
+    public void SwitchToFpsScene()
+    {
+        PlayUiClickSound();
+        if (PlayModeManager.s_cInstance != null)
+        {
+            PlayModeManager.s_cInstance.SwitchToFps();
+            return;
+        }
+
+        string strInGameName = InGameSceneName;
+        if (!string.IsNullOrEmpty(strInGameName))
+        {
+            SetGuiScene(strInGameName);
+        }
+    }
+
+    /// <summary>
+    /// FPS <-> RTS 모드/UI를 토글합니다.
+    /// </summary>
+    public void ToggleRtsTestView()
+    {
+        if (PlayModeManager.s_cInstance != null)
+        {
+            PlayUiClickSound();
+            PlayModeManager.s_cInstance.TogglePlayMode();
+            return;
+        }
+
+        string strRtsName = RtsSceneName;
+        if (string.IsNullOrEmpty(strRtsName)) return;
+
+        if (m_strCurrentSceneName == strRtsName)
+        {
+            SwitchToFpsScene();
+        }
+        else
+        {
+            SwitchToRtsScene();
+        }
+    }
+
+    /// <summary>
+    /// 플레이 화면 <-> 일시정지 팝업 토글
     /// </summary>
     public void TogglePause()
     {
@@ -412,18 +495,18 @@ public class GUIManager : MonoBehaviour
         {
             ResumeGame();
         }
-        else if (m_strCurrentSceneName == InGameSceneName)
+        else if (m_cCurrentScene != null && m_cCurrentScene.CanPause)
         {
             PauseGame();
         }
     }
 
     /// <summary>
-    /// [인게임] -> [일시정지] 팝업 오픈 이벤트 핸들러 (인게임 UI를 유지한 채 팝업 루트 위에 덮어 표시)
+    /// [플레이 화면] -> [일시정지] 팝업 오픈 이벤트 핸들러 (하위 씬 UI를 유지한 채 팝업 루트 위에 덮어 표시)
     /// </summary>
     public void PauseGame()
     {
-        if (m_strCurrentSceneName != InGameSceneName) return;
+        if (m_cCurrentScene == null || !m_cCurrentScene.CanPause) return;
 
         PauseGuiScene cPausePopup = m_cPopupManager != null ? m_cPopupManager.GetPopup<PauseGuiScene>() : null;
         if (cPausePopup != null && cPausePopup.IsActive) return;

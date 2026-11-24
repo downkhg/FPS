@@ -1009,6 +1009,7 @@ MonoBehaviour:
   m_listScenePrefabs:
   - {fileID: 7031715485937382616, guid: c1b2c3d4e5f60718293a4b5c6d7e8101, type: 3}
   - {fileID: 7480855608354144205, guid: c1b2c3d4e5f60718293a4b5c6d7e8102, type: 3}
+  - {fileID: 8105000000000000003, guid: c1b2c3d4e5f60718293a4b5c6d7e8105, type: 3}
   - {fileID: 4043796649513585706, guid: c1b2c3d4e5f60718293a4b5c6d7e8104, type: 3}
   m_listSceneViews: []
   m_cPopupManager: {fileID: 1385504394}
@@ -1030,6 +1031,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_trPopupRoot: {fileID: 0}
+  m_eInstanceMode: 0
+  m_eDefaultStackMode: 0
   m_imgDimOverlay: {fileID: 0}
   m_colorDim: {r: 0, g: 0, b: 0, a: 0.65}
   m_listPopupPrefabs:
