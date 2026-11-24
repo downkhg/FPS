@@ -1060,7 +1060,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_bSkipTitleOnStart: 1
-  m_bStartInRtsMode: 0
+  m_bStartInRtsMode: 1
   m_nAllySquadCount: 3
   m_nExtraEnemyCount: 1
   m_fAllySpawnRadius: 3.5

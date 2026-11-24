@@ -121,14 +121,14 @@ public class Player : MonoBehaviour
 
     void Update()
     {
-        if (!GUIManager.CanProcessGameplayInput()) return;
+        if (!GUIManager.CanRunSimulation()) return;
         if (m_bIsInitGunScript && m_cCurrentGun && m_cCurrentGun.gameObject.activeInHierarchy)
             m_cCurrentGun.UpdateProcess();
     }
 
     private void FixedUpdate()
     {
-        if (!GUIManager.CanProcessGameplayInput()) return;
+        if (!GUIManager.CanRunSimulation()) return;
         if (m_bIsInitGunScript && m_cCurrentGun && m_cCurrentGun.gameObject.activeInHierarchy)
             m_cCurrentGun.FixedUpdateProcess();
     }

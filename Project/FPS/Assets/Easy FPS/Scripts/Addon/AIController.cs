@@ -328,37 +328,46 @@ public class AIController : MonoBehaviour
 
     private Transform FindTarget()
     {
-        // GameManager의 CurrentPlayer를 우선 참조하여 FindGameObjectWithTag 비용 절감
-        if (GameManager.s_cInstance != null && GameManager.s_cInstance.CurrentPlayer != null)
-        {
-            Player cTargetPlayer = GameManager.s_cInstance.CurrentPlayer;
-            if (cTargetPlayer.gameObject != this.gameObject)
-            {
-                float fDist = Vector3.Distance(transform.position, cTargetPlayer.transform.position);
-                if (fDist <= m_fDetectionRadius)
-                    return cTargetPlayer.transform;
-            }
-        }
-
+        string strMyTag = gameObject.tag;
         Collider[] arrHits = Physics.OverlapSphere(transform.position, m_fDetectionRadius);
-        Transform trSecondaryMatch = null;
+
+        Transform trClosestHostile = null;
+        float fClosestDistSq = float.MaxValue;
 
         for (int i = 0; i < arrHits.Length; i++)
         {
             Collider cHit = arrHits[i];
-            if (cHit.gameObject == this.gameObject) continue;
+            if (cHit == null) continue;
 
-            if (cHit.CompareTag(m_strPrimaryTargetTag))
+            Player cCandidatePlayer = cHit.GetComponentInParent<Player>();
+            Transform trCandidate = cCandidatePlayer != null ? cCandidatePlayer.transform : cHit.transform;
+            if (trCandidate == this.transform) continue;
+            if (cCandidatePlayer != null && cCandidatePlayer.IsDead) continue;
+
+            string strCandidateTag = trCandidate.tag;
+
+            // 태그 기반 피아식별: 아군(Player/Ally) <-> 적군(Enemy/Dummie)만 교전, 아군은 절대 공격하지 않음
+            bool bIsHostile = BulletScript.IsHostileTag(strMyTag, strCandidateTag);
+
+            // 자신의 태그가 미지정(Untagged)인 경우에만 인스펙터의 TargetTag 폴백 사용
+            if (!bIsHostile && !BulletScript.IsCombatUnitTag(strMyTag))
             {
-                return cHit.transform;
+                bIsHostile =
+                    (!string.IsNullOrEmpty(m_strPrimaryTargetTag) && trCandidate.CompareTag(m_strPrimaryTargetTag)) ||
+                    (!string.IsNullOrEmpty(m_strSecondaryTargetTag) && trCandidate.CompareTag(m_strSecondaryTargetTag));
             }
-            if (trSecondaryMatch == null && cHit.CompareTag(m_strSecondaryTargetTag))
+
+            if (!bIsHostile) continue;
+
+            float fDistSq = (trCandidate.position - transform.position).sqrMagnitude;
+            if (fDistSq < fClosestDistSq)
             {
-                trSecondaryMatch = cHit.transform;
+                fClosestDistSq = fDistSq;
+                trClosestHostile = trCandidate;
             }
         }
 
-        return trSecondaryMatch;
+        return trClosestHostile;
     }
 
     void OnDrawGizmos()

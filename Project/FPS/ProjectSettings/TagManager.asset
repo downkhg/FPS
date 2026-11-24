@@ -12,6 +12,7 @@ TagManager:
   - Physic
   - PhysicObject
   - Enemy
+  - Ally
   layers:
   - Default
   - TransparentFX

@@ -14,7 +14,7 @@ public class RtsHybridTestBootstrap : MonoBehaviour
 
     [Tooltip("체크 시 시작하자마자 RTS 전술 모드로 진입 (해제 시 FPS 모드로 시작 후 Tab으로 전환)")]
     [SerializeField]
-    private bool m_bStartInRtsMode = false;
+    private bool m_bStartInRtsMode = true;
 
     [Header("Test Unit Spawn Settings")]
     [SerializeField]
@@ -63,19 +63,20 @@ public class RtsHybridTestBootstrap : MonoBehaviour
         Player cPc = _cGameMgr.CurrentPlayer;
         Player cTemplateNpc = _cGameMgr.CurrentNpc;
 
-        // PC 머리 위 지휘관 마커 (하늘색)
+        // PC 머리 위 지휘관 마커 (하늘색) 및 Player 태그 보장
         if (cPc != null)
         {
+            cPc.gameObject.tag = "Player";
             AttachRoleMarker(cPc.transform, new Color(0.2f, 0.85f, 1f, 1f), "CommanderMarker");
         }
 
         if (cTemplateNpc == null) return;
 
-        // 기존 NPC를 적군 1호로 마킹 (빨간색)
-        ConfigureNpcUnit(cTemplateNpc, false, "Enemy_Unit_1", "Dummie", "Player", "Dummie");
+        // 기존 NPC를 적군 1호로 마킹 (빨간색, Enemy 태그)
+        ConfigureNpcUnit(cTemplateNpc, false, "Enemy_Unit_1", "Enemy", "Player", "Ally");
         AttachRoleMarker(cTemplateNpc.transform, new Color(1f, 0.25f, 0.25f, 1f), "EnemyMarker");
 
-        // 1. 아군 분대 NPC 스폰 (PC 주변에 배치)
+        // 1. 아군 분대 NPC 스폰 (PC 주변에 배치, Ally 태그 -> Enemy/Dummie만 공격하고 Player/Ally는 공격 금지)
         Vector3 vPcOrigin = cPc != null ? cPc.transform.position : Vector3.zero;
         for (int i = 0; i < m_nAllySquadCount; i++)
         {
@@ -84,17 +85,17 @@ public class RtsHybridTestBootstrap : MonoBehaviour
             Vector3 vSpawnPos = vPcOrigin + vOffset;
 
             Player cAlly = Instantiate(cTemplateNpc, vSpawnPos, Quaternion.identity);
-            ConfigureNpcUnit(cAlly, true, $"Ally_Squad_{i + 1}", "Untagged", "Dummie", "Enemy");
+            ConfigureNpcUnit(cAlly, true, $"Ally_Squad_{i + 1}", "Ally", "Enemy", "Dummie");
             AttachRoleMarker(cAlly.transform, new Color(0.25f, 1f, 0.45f, 1f), "AllyMarker");
         }
 
-        // 2. 추가 적군 NPC 스폰 (기존 적군 옆에 배치)
+        // 2. 추가 적군 NPC 스폰 (기존 적군 옆에 배치, Enemy 태그)
         Vector3 vEnemyOrigin = cTemplateNpc.transform.position;
         for (int i = 0; i < m_nExtraEnemyCount; i++)
         {
             Vector3 vSpawnPos = vEnemyOrigin + new Vector3((i + 1) * m_fEnemySpawnSpacing, 0f, 0f);
             Player cEnemy = Instantiate(cTemplateNpc, vSpawnPos, Quaternion.identity);
-            ConfigureNpcUnit(cEnemy, false, $"Enemy_Unit_{i + 2}", "Dummie", "Player", "Untagged");
+            ConfigureNpcUnit(cEnemy, false, $"Enemy_Unit_{i + 2}", "Enemy", "Player", "Ally");
             AttachRoleMarker(cEnemy.transform, new Color(1f, 0.25f, 0.25f, 1f), "EnemyMarker");
         }
     }

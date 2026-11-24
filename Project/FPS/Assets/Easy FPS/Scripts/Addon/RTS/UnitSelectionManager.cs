@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -19,6 +20,8 @@ public class UnitSelectionManager : MonoBehaviour
     private Color m_colorBoxBorder = new Color(0.3f, 0.9f, 1f, 0.85f);
 
     private readonly List<RtsUnitAgent> m_listSelectedUnits = new List<RtsUnitAgent>();
+
+    public event Action<int> OnSelectionCountChanged;
 
     private RtsCameraController m_cRtsCamera;
     private bool m_bSelectionEnabled = false;
@@ -70,6 +73,14 @@ public class UnitSelectionManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
+            // 커맨드 카드의 타깃팅 대기 명령(Move/Attack)이 활성 중이면 좌클릭을 명령 컨트롤러에 양보
+            if (PlayModeManager.s_cInstance != null &&
+                PlayModeManager.s_cInstance.CommandController != null &&
+                PlayModeManager.s_cInstance.CommandController.HasPendingTargetCommand)
             {
                 return;
             }
@@ -173,13 +184,15 @@ public class UnitSelectionManager : MonoBehaviour
 
     public void UpdateRtsHudStatus(string _strLastAction = null)
     {
+        OnSelectionCountChanged?.Invoke(m_listSelectedUnits.Count);
+
         if (GUIManager.s_cInstance == null) return;
 
         RtsGuiScene cRtsHud = GUIManager.s_cInstance.GetGuiScene<RtsGuiScene>();
         if (cRtsHud == null) return;
 
         string strActionSuffix = string.IsNullOrEmpty(_strLastAction) ? string.Empty : $"  |  {_strLastAction}";
-        cRtsHud.SetTacticalStatus($"Selected: {m_listSelectedUnits.Count}  |  [RMB] Move/Attack  [H] Hold  [G] Rally  [F] Follow PC  [Tab] FPS{strActionSuffix}");
+        cRtsHud.SetTacticalStatus($"Selected: {m_listSelectedUnits.Count}  |  [RMB] Move/Attack  [M/X/H/T/G/F/R] Command Card  [Tab] FPS{strActionSuffix}");
     }
 
     private void OnGUI()

@@ -83,7 +83,14 @@ public class PlayerController : MonoBehaviour
                 break;
 
             case PlayerState.Reload:
-                m_cPlayer.Reload();
+                if (m_cPlayer.Gun != null && (m_cPlayer.Gun.CanReload || m_cPlayer.Gun.IsReloading))
+                {
+                    m_cPlayer.Reload();
+                }
+                else
+                {
+                    m_eCurrentState = PlayerState.Idle;
+                }
                 break;
 
             case PlayerState.Melee:
@@ -198,6 +205,13 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateAttack()
     {
+        // 사격 중 R키 입력 또는 탄약 소진 자동 리로드 감지 시 Reload 상태로 전이
+        if (Input.GetKeyDown(KeyCode.R) || (m_cPlayer.Gun != null && m_cPlayer.Gun.IsReloading))
+        {
+            SetState(PlayerState.Reload);
+            return;
+        }
+
         // 사격 실행
         if (IsFireInput())
         {

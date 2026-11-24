@@ -75,6 +75,7 @@ public class GunScript : MonoBehaviour
     [HideInInspector]
     [FormerlySerializedAs("reloading")]
     public bool m_bIsReloading;
+    private bool m_bReloadCoroutineRunning = false;
 
     private Vector3 m_vGunPosVelocity;
     private float m_fCameraZoomVelocity;
@@ -241,16 +242,29 @@ public class GunScript : MonoBehaviour
     public float BulletsIHave => m_fBulletsIHave;
     public float BulletsInTheGun => m_fBulletsInTheGun;
     public bool IsReloading => m_bIsReloading;
+    public bool CanReload => !m_bIsReloading && !m_bReloadCoroutineRunning && !m_bIsMeleeAttack && m_fBulletsIHave > 0f && m_fBulletsInTheGun < m_fAmountOfBulletsPerLoad;
     public bool IsMeleeAttack => m_bIsMeleeAttack;
     public bool IsAiming => m_bIsAiming;
     public Animator HandsAnimator => m_animHands;
 
     private void OnDisable()
     {
+        StopAllCoroutines();
+        m_bReloadCoroutineRunning = false;
         m_bIsReloading = false;
         m_bIsMeleeAttack = false;
         m_bIsAiming = false;
         m_bIsAimingControlled = false;
+
+        if (m_asReloadSound != null && m_asReloadSound.isPlaying)
+        {
+            m_asReloadSound.Stop();
+        }
+
+        if (m_animHands != null)
+        {
+            m_animHands.SetBool("reloading", false);
+        }
     }
 
     public void Initialize(
@@ -362,7 +376,7 @@ public class GunScript : MonoBehaviour
 
     public void TriggerReload()
     {
-        if (!m_bIsReloading && !m_bIsMeleeAttack)
+        if (CanReload)
         {
             StartCoroutine(ReloadAnimationCoroutine());
         }
@@ -558,9 +572,13 @@ public class GunScript : MonoBehaviour
 
     public void GetBulletSpawnTransform(out Vector3 _vSpawnPosition, out Quaternion _qSpawnRotation)
     {
-        bool bIsLocalPlayer = (m_cPlayer == null || m_cPlayer.IsPlayer) && m_trMainCamera != null;
+        bool bIsFirstPersonAiming =
+            (m_cPlayer == null || m_cPlayer.IsPlayer) &&
+            m_trMainCamera != null &&
+            (m_camMain == null || m_camMain.enabled) &&
+            GUIManager.CanProcessGameplayInput();
 
-        if (bIsLocalPlayer)
+        if (bIsFirstPersonAiming)
         {
             _qSpawnRotation = m_trMainCamera.rotation;
 
@@ -607,7 +625,13 @@ public class GunScript : MonoBehaviour
 
                 if (m_prefabBullet)
                 {
-                    Instantiate(m_prefabBullet, vSpawnPos, qSpawnRot);
+                    GameObject objBullet = Instantiate(m_prefabBullet, vSpawnPos, qSpawnRot);
+                    BulletScript cBullet = objBullet != null ? objBullet.GetComponent<BulletScript>() : null;
+                    if (cBullet != null)
+                    {
+                        string strShooterTag = m_trPlayer != null ? m_trPlayer.tag : string.Empty;
+                        cBullet.InitializeShooter(m_trPlayer, strShooterTag);
+                    }
                 }
 
                 if (m_objMuzzleSpawn && m_arrPrefabMuzzleFlash != null && m_arrPrefabMuzzleFlash.Length > 0)
@@ -630,50 +654,82 @@ public class GunScript : MonoBehaviour
             }
             else
             {
-                StartCoroutine(ReloadAnimationCoroutine());
+                TriggerReload();
             }
         }
     }
 
     private IEnumerator ReloadAnimationCoroutine()
     {
-        if (m_fBulletsIHave > 0f && m_fBulletsInTheGun < m_fAmountOfBulletsPerLoad && !m_bIsReloading)
+        if (!CanReload) yield break;
+
+        m_bReloadCoroutineRunning = true;
+        m_bIsReloading = true;
+
+        try
         {
             if (m_asReloadSound && !m_asReloadSound.isPlaying)
             {
                 m_asReloadSound.Play();
             }
 
+            float fTotalReloadTime = m_fReloadChangeBulletsTime > 0.1f ? m_fReloadChangeBulletsTime : 1.5f;
+            float fAnimHoldTime = Mathf.Min(0.5f, fTotalReloadTime);
+            float fRemainWaitTime = Mathf.Max(0f, fTotalReloadTime - fAnimHoldTime);
+
             if (m_animHands)
             {
                 m_animHands.SetBool("reloading", true);
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(fAnimHoldTime);
                 m_animHands.SetBool("reloading", false);
             }
-
-            yield return new WaitForSeconds(m_fReloadChangeBulletsTime - 0.5f);
-
-            if (!m_bIsMeleeAttack && m_cPlayerMovement && m_cPlayerMovement.MaxSpeed != m_nRunningSpeed)
+            else
             {
-                if (m_cPlayerMovement.m_asReloadVoiceSound)
-                    m_cPlayerMovement.m_asReloadVoiceSound.Play();
+                yield return new WaitForSeconds(fAnimHoldTime);
+            }
 
-                float fNeeded = m_fAmountOfBulletsPerLoad - m_fBulletsInTheGun; //80 -70= 10
-                if (m_fBulletsIHave >= fNeeded) //9999 >= 10 > T
+            if (fRemainWaitTime > 0f)
+            {
+                yield return new WaitForSeconds(fRemainWaitTime);
+            }
+
+            if (!m_bIsMeleeAttack)
+            {
+                if (m_cPlayerMovement != null && m_cPlayerMovement.m_asReloadVoiceSound)
                 {
-                    m_fBulletsIHave -= fNeeded; //9999 - 10 = 9989
-                    m_fBulletsInTheGun = m_fAmountOfBulletsPerLoad;
+                    m_cPlayerMovement.m_asReloadVoiceSound.Play();
                 }
-                else
+
+                float fNeeded = m_fAmountOfBulletsPerLoad - m_fBulletsInTheGun;
+                if (fNeeded > 0f && m_fBulletsIHave > 0f)
                 {
-                    m_fBulletsInTheGun += m_fBulletsIHave;
-                    m_fBulletsIHave = 0f;
+                    if (m_fBulletsIHave >= fNeeded)
+                    {
+                        m_fBulletsIHave -= fNeeded;
+                        m_fBulletsInTheGun = m_fAmountOfBulletsPerLoad;
+                    }
+                    else
+                    {
+                        m_fBulletsInTheGun += m_fBulletsIHave;
+                        m_fBulletsIHave = 0f;
+                    }
                 }
             }
             else
             {
                 if (m_asReloadSound)
+                {
                     m_asReloadSound.Stop();
+                }
+            }
+        }
+        finally
+        {
+            m_bReloadCoroutineRunning = false;
+            m_bIsReloading = false;
+            if (m_animHands)
+            {
+                m_animHands.SetBool("reloading", false);
             }
         }
     }
@@ -721,10 +777,15 @@ public class GunScript : MonoBehaviour
     {
         if (m_animHands && m_cPlayerMovement)
         {
-            m_bIsReloading = m_animHands.GetCurrentAnimatorStateInfo(0).IsName(m_strReloadAnimationName);
+            bool bAnimReloading = m_animHands.GetCurrentAnimatorStateInfo(0).IsName(m_strReloadAnimationName);
+            m_bIsReloading = m_bReloadCoroutineRunning || bAnimReloading;
             m_animHands.SetFloat("walkSpeed", m_cPlayerMovement.CurrentSpeed);
             m_animHands.SetBool("aiming", m_bIsAimingControlled);
             m_animHands.SetInteger("maxSpeed", m_cPlayerMovement.MaxSpeed);
+        }
+        else
+        {
+            m_bIsReloading = m_bReloadCoroutineRunning;
         }
     }
 
