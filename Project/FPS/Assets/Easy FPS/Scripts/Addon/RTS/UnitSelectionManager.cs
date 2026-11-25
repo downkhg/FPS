@@ -232,4 +232,13 @@ public class UnitSelectionManager : MonoBehaviour
         m_texPixel.SetPixel(0, 0, Color.white);
         m_texPixel.Apply();
     }
+
+    private void OnDestroy()
+    {
+        if (m_texPixel != null)
+        {
+            Destroy(m_texPixel);
+            m_texPixel = null;
+        }
+    }
 }

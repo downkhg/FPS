@@ -46,6 +46,7 @@ public class RtsUnitAgent : MonoBehaviour
 
     private Player m_cPlayer;
     private LineRenderer m_lrSelectionRing;
+    private Material m_matSelectionRing;
 
     private bool m_bIsSelected = false;
     private ERtsCommandType m_eCurrentCommand = ERtsCommandType.None;
@@ -70,6 +71,21 @@ public class RtsUnitAgent : MonoBehaviour
         m_cPlayer = GetComponent<Player>();
         EnsureSelectionRing();
         SetSelected(false);
+
+        AIController cAi = GetComponent<AIController>();
+        if (cAi != null)
+        {
+            cAi.SetRtsUnitAgent(this);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (m_matSelectionRing != null)
+        {
+            Destroy(m_matSelectionRing);
+            m_matSelectionRing = null;
+        }
     }
 
     private void EnsureSelectionRing()
@@ -99,7 +115,8 @@ public class RtsUnitAgent : MonoBehaviour
             Shader shaderSprite = Shader.Find("Sprites/Default");
             if (shaderSprite != null)
             {
-                m_lrSelectionRing.material = new Material(shaderSprite);
+                m_matSelectionRing = new Material(shaderSprite);
+                m_lrSelectionRing.material = m_matSelectionRing;
             }
 
             Color sRingColor = (m_cPlayer != null && m_cPlayer.IsPlayer)

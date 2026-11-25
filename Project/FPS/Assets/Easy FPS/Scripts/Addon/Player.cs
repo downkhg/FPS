@@ -261,6 +261,11 @@ public class Player : MonoBehaviour
             AudioSource asMarker = trFoundMarker ? trFoundMarker.GetComponent<AudioSource>() : m_asHitMarker;
 
             cGun.Initialize(this.transform, m_cMouseLook, trPivotToUse, m_camSecond, objSpawnToUse, asMarker, tmHudBullets);
+
+            if (GUIManager.s_cInstance != null)
+            {
+                GUIManager.s_cInstance.RegisterSfxSourcesInHierarchy(cGun.transform);
+            }
         }
 
         // 4. 0번 슬롯(기본 무기)만 활성화하고 나머지는 비활성화
@@ -324,9 +329,9 @@ public class Player : MonoBehaviour
             m_cGunInventory.SyncWeaponState(m_nCurrentWeaponIndex, m_cCurrentGun != null ? m_cCurrentGun.gameObject : null);
         }
 
-        if (GUIManager.s_cInstance != null)
+        if (m_cCurrentGun != null && GUIManager.s_cInstance != null)
         {
-            GUIManager.s_cInstance.RefreshSfxSources();
+            GUIManager.s_cInstance.RegisterSfxSourcesInHierarchy(m_cCurrentGun.transform);
         }
     }
 

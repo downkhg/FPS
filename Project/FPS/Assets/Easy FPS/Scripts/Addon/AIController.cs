@@ -20,6 +20,7 @@ public class AIController : MonoBehaviour
     public AIState CurrentState => m_eCurrentState;
 
     private Player m_cNpc;
+    private RtsUnitAgent m_cRtsAgent;
 
     [Header("AI Detection Settings")]
     [Tooltip("적 탐지 반경")]
@@ -78,10 +79,20 @@ public class AIController : MonoBehaviour
     void Awake()
     {
         m_cNpc = GetComponent<Player>();
+        m_cRtsAgent = GetComponent<RtsUnitAgent>();
+    }
+
+    public void SetRtsUnitAgent(RtsUnitAgent _cAgent)
+    {
+        m_cRtsAgent = _cAgent;
     }
 
     void Start()
     {
+        if (m_cRtsAgent == null)
+        {
+            m_cRtsAgent = GetComponent<RtsUnitAgent>();
+        }
         SetState(AIState.Idle);
     }
 
@@ -91,8 +102,7 @@ public class AIController : MonoBehaviour
         if (!GUIManager.CanRunSimulation()) return;
 
         // RTS 명령(이동/집중 사격/홀드/추종)을 수행 중이면 자율 FSM을 일시 양보
-        RtsUnitAgent cRtsAgent = GetComponent<RtsUnitAgent>();
-        if (cRtsAgent != null && cRtsAgent.HasActiveCommand) return;
+        if (m_cRtsAgent != null && m_cRtsAgent.HasActiveCommand) return;
 
         // 공격 쿨다운 타이머 감소
         if (m_fAttackTimer > 0f)

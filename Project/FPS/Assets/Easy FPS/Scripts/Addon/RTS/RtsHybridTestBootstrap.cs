@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -30,6 +31,19 @@ public class RtsHybridTestBootstrap : MonoBehaviour
     private float m_fEnemySpawnSpacing = 4.0f;
 
     private bool m_bBootstrapped = false;
+    private readonly List<Material> m_listRuntimeMaterials = new List<Material>();
+
+    private void OnDestroy()
+    {
+        for (int i = 0; i < m_listRuntimeMaterials.Count; i++)
+        {
+            if (m_listRuntimeMaterials[i] != null)
+            {
+                Destroy(m_listRuntimeMaterials[i]);
+            }
+        }
+        m_listRuntimeMaterials.Clear();
+    }
 
     private void Start()
     {
@@ -164,6 +178,7 @@ public class RtsHybridTestBootstrap : MonoBehaviour
                 Material mat = new Material(shaderUnlit);
                 mat.color = _sColor;
                 mr.material = mat;
+                m_listRuntimeMaterials.Add(mat);
             }
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mr.receiveShadows = false;

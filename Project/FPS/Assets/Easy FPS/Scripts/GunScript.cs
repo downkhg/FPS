@@ -51,6 +51,9 @@ public class GunScript : MonoBehaviour
 
     private PlayerMovementScript m_cPlayerMovement;
     private Player m_cPlayer;
+    private Rigidbody m_rbPlayer;
+    private int m_nLastHudBulletsInGun = -1;
+    private int m_nLastHudBulletsIHave = -1;
 
     // 마리오네트 조준 상태
     private bool m_bIsAimingControlled = false;
@@ -287,6 +290,13 @@ public class GunScript : MonoBehaviour
         {
             m_cPlayerMovement = m_trPlayer.GetComponent<PlayerMovementScript>();
             m_cPlayer = m_trPlayer.GetComponent<Player>();
+            m_rbPlayer = m_trPlayer.GetComponent<Rigidbody>();
+        }
+        else
+        {
+            m_cPlayerMovement = null;
+            m_cPlayer = null;
+            m_rbPlayer = null;
         }
 
         m_objBulletSpawnPlace = _objBulletSpawnPlace;
@@ -308,6 +318,8 @@ public class GunScript : MonoBehaviour
             m_fRotationLastY = 0f;
             m_fRotationLastX = 0f;
         }
+
+        SyncAmmoHud(true);
     }
 
     public void PlayHitMarkerSound()
@@ -326,6 +338,8 @@ public class GunScript : MonoBehaviour
 
         float fRps = m_fRoundsPerSecond > 0f ? m_fRoundsPerSecond : 5f;
         m_fWaitTillNextFire -= fRps * Time.deltaTime;
+
+        SyncAmmoHud(false);
     }
 
     public void FixedUpdateProcess()
@@ -403,9 +417,7 @@ public class GunScript : MonoBehaviour
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
         if (!m_trPlayer) return;
 
-        Rigidbody rbPlayer = m_trPlayer.GetComponent<Rigidbody>();
-
-        if (rbPlayer && rbPlayer.linearVelocity.magnitude > 1f && !m_bIsAimingControlled)
+        if (m_rbPlayer && m_rbPlayer.linearVelocity.magnitude > 1f && !m_bIsAimingControlled)
         {
             m_vExpandValuesCrosshair += new Vector2(20f, 40f) * Time.deltaTime;
             if (m_cPlayerMovement && m_cPlayerMovement.MaxSpeed < m_nRunningSpeed)
@@ -734,11 +746,18 @@ public class GunScript : MonoBehaviour
         }
     }
 
-    private void OnGUI()
+    private void SyncAmmoHud(bool _bForce)
     {
         if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
-        if (!GUIManager.CanProcessGameplayInput()) return;
-        if (m_camMain == null) return;
+
+        int nInGun = Mathf.RoundToInt(m_fBulletsInTheGun);
+        int nTotal = Mathf.RoundToInt(m_fBulletsIHave);
+
+        if (!_bForce && nInGun == m_nLastHudBulletsInGun && nTotal == m_nLastHudBulletsIHave)
+            return;
+
+        m_nLastHudBulletsInGun = nInGun;
+        m_nLastHudBulletsIHave = nTotal;
 
         if (!m_tmHudBullets && GameManager.s_cInstance != null)
         {
@@ -746,19 +765,29 @@ public class GunScript : MonoBehaviour
         }
 
         if (m_cMouseLook && m_tmHudBullets)
-            m_tmHudBullets.text = $"{m_fBulletsIHave} - {m_fBulletsInTheGun}";
+            m_tmHudBullets.text = $"{nTotal} - {nInGun}";
 
         if (GUIManager.s_cInstance != null)
         {
             GUIManager.s_cInstance.UpdateAmmoUi(gameObject.name, m_fBulletsInTheGun, m_fBulletsIHave);
         }
+    }
+
+    private void OnGUI()
+    {
+        if (m_cPlayer != null && !m_cPlayer.IsPlayer) return;
+        if (!GUIManager.CanProcessGameplayInput()) return;
+        if (m_camMain == null) return;
 
         DrawCrosshair();
     }
 
     private void DrawCrosshair()
     {
-        GUI.color = new Color(GUI.color.r, GUI.color.g, GUI.color.b, m_fFadeoutValue);
+        if (Event.current.type != EventType.Repaint) return;
+
+        Color sPrevColor = GUI.color;
+        GUI.color = new Color(sPrevColor.r, sPrevColor.g, sPrevColor.b, m_fFadeoutValue);
         if (!m_bIsAimingControlled)
         {
             GUI.DrawTexture(new Rect(ToScreenVec2(m_vLeftPosCrosshair).x + ToScreenX(-m_vExpandValuesCrosshair.x) + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vLeftPosCrosshair).y, ToScreenVec2(m_vSizeCrosshairHorizontal).x, ToScreenVec2(m_vSizeCrosshairHorizontal).y), m_texVerticalCrosshair);
@@ -767,6 +796,7 @@ public class GunScript : MonoBehaviour
             GUI.DrawTexture(new Rect(ToScreenVec2(m_vTopPosCrosshair).x + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vTopPosCrosshair).y + ToScreenY(-m_vExpandValuesCrosshair.y), ToScreenVec2(m_vSizeCrosshairVertical).x, ToScreenVec2(m_vSizeCrosshairVertical).y), m_texHorizontalCrosshair);
             GUI.DrawTexture(new Rect(ToScreenVec2(m_vBottomPosCrosshair).x + Screen.width / 2f, Screen.height / 2f + ToScreenVec2(m_vBottomPosCrosshair).y + ToScreenY(m_vExpandValuesCrosshair.y), ToScreenVec2(m_vSizeCrosshairVertical).x, ToScreenVec2(m_vSizeCrosshairVertical).y), m_texHorizontalCrosshair);
         }
+        GUI.color = sPrevColor;
     }
 
     private float ToScreenX(float _fVal) => Screen.width * _fVal / 100f;

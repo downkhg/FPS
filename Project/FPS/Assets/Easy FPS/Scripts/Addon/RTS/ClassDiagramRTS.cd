@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="FpsPlayMode" BaseTypeListCollapsed="true">
+    <Position X="1.25" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAgAAQAAAAAAAAQAAAAQAAAAEIAAAAEAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\FpsPlayMode.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="PlayModeManager">
+    <Position X="4.75" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AARAAAAABACIQaBAICAABAAAACAAAgAAEIEgACAgQEA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\PlayModeManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="RtsCameraController">
+    <Position X="7.25" Y="1.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AARQAAAIAQAQARAAUCAAAYgAQiCBAoAAAAKAAAAFCBA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\RtsCameraController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="RtsHybridTestBootstrap">
+    <Position X="0.5" Y="4.5" Width="3.25" />
+    <TypeIdentifier>
+      <HashCode>AAAAIQAAACAAAAAIAAAAAgAQBABAAAAAAAEBAAAAACA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\RtsHybridTestBootstrap.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="RtsPlayMode" BaseTypeListCollapsed="true">
+    <Position X="11.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAgAAQAAAAAAAAQAAAAQAAAAEIAAAAEAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\RtsPlayMode.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" Collapsed="true" />
+  </Class>
+  <Class Name="RtsUnitAgent">
+    <Position X="13.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAxAAIAhQAQB0AAAAAAAEAAAQcAUQASAAsABEADQAEA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\RtsUnitAgent.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="UnitCommandController">
+    <Position X="17.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gAwAAgAABEMEAQEgAACAAAAAAAAIAQBgAAAACAAjAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\UnitCommandController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="UnitSelectionManager">
+    <Position X="15.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAkAACAoAAAQBCAAQQAAAAAAIAAAIgAAiAAAAgQgE=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\UnitSelectionManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Struct Name="RtsCommandSlotInfo">
+    <Position X="11.5" Y="4.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAABAgAAAAAAAAQAAABAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\UnitCommandController.cs</FileName>
+    </TypeIdentifier>
+  </Struct>
+  <Interface Name="IPlayModeState">
+    <Position X="15.5" Y="7" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAgAAQAAAAAAAAAAAAAQAAAAAIAAAAEAAAA=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\IPlayModeState.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
+  <Enum Name="ERtsCommandType">
+    <Position X="11.5" Y="7.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAIAAAAAAAAAAAAAAAAgAAAAAAAAAAAEAABE=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\RtsUnitAgent.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="ERtsCommanderSlotAction">
+    <Position X="9.75" Y="7.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAEIAAAAQAAAAAAAAAAIgAAAAAKAAAAAEAgAE=</HashCode>
+      <FileName>Assets\Easy FPS\Scripts\Addon\RTS\UnitCommandController.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="맑은 고딕" Size="9" />
+</ClassDiagram>

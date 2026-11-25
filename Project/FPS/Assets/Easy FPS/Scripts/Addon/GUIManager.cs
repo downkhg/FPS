@@ -50,6 +50,8 @@ public class GUIManager : MonoBehaviour
     private bool m_bIsMuted = false;
 
     private readonly Dictionary<AudioSource, float> m_dictSfxBaseVolumes = new Dictionary<AudioSource, float>();
+    private AudioClip m_clipProceduralBgm;
+    private AudioClip m_clipProceduralClick;
     private bool m_bIsInitialized = false;
 
     private const string PREF_BGM_VOL = "FPS_BGM_VOLUME";
@@ -112,6 +114,38 @@ public class GUIManager : MonoBehaviour
             return;
         }
         s_cInstance = this;
+    }
+
+    private void OnDestroy()
+    {
+        if (m_asBgm != null && m_asBgm.clip == m_clipProceduralBgm)
+        {
+            m_asBgm.Stop();
+            m_asBgm.clip = null;
+        }
+
+        if (m_clipProceduralBgm != null)
+        {
+            Destroy(m_clipProceduralBgm);
+            m_clipProceduralBgm = null;
+        }
+
+        if (m_asUiClick != null && m_asUiClick.clip == m_clipProceduralClick)
+        {
+            m_asUiClick.Stop();
+            m_asUiClick.clip = null;
+        }
+
+        if (m_clipProceduralClick != null)
+        {
+            Destroy(m_clipProceduralClick);
+            m_clipProceduralClick = null;
+        }
+
+        if (s_cInstance == this)
+        {
+            s_cInstance = null;
+        }
     }
 
     private void Start()
@@ -752,17 +786,38 @@ public class GUIManager : MonoBehaviour
         AudioSource[] arrAllSources = FindObjectsByType<AudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < arrAllSources.Length; i++)
         {
-            AudioSource asTarget = arrAllSources[i];
-            if (asTarget == null || asTarget == m_asBgm) continue;
-
-            if (!m_dictSfxBaseVolumes.ContainsKey(asTarget))
-            {
-                float fBaseVol = asTarget.volume > 0.01f ? asTarget.volume : 1f;
-                m_dictSfxBaseVolumes.Add(asTarget, fBaseVol);
-            }
+            RegisterSfxSource(arrAllSources[i]);
         }
 
         ApplySfxVolumeToAllSources();
+    }
+
+    /// <summary>
+    /// 씬 전체 스캔 없이 지정한 오브젝트 계층의 AudioSource만 SFX 볼륨 관리 대상에 등록합니다.
+    /// </summary>
+    public void RegisterSfxSourcesInHierarchy(Transform _trRoot)
+    {
+        if (_trRoot == null) return;
+
+        AudioSource[] arrSources = _trRoot.GetComponentsInChildren<AudioSource>(true);
+        for (int i = 0; i < arrSources.Length; i++)
+        {
+            AudioSource asTarget = arrSources[i];
+            if (RegisterSfxSource(asTarget))
+            {
+                asTarget.volume = m_bIsMuted ? 0f : (m_dictSfxBaseVolumes[asTarget] * m_fSfxVolume);
+            }
+        }
+    }
+
+    private bool RegisterSfxSource(AudioSource _asTarget)
+    {
+        if (_asTarget == null || _asTarget == m_asBgm) return false;
+        if (m_dictSfxBaseVolumes.ContainsKey(_asTarget)) return false;
+
+        float fBaseVol = _asTarget.volume > 0.01f ? _asTarget.volume : 1f;
+        m_dictSfxBaseVolumes.Add(_asTarget, fBaseVol);
+        return true;
     }
 
     private void ApplySfxVolumeToAllSources()
@@ -897,7 +952,8 @@ public class GUIManager : MonoBehaviour
 
         if (m_asBgm.clip == null)
         {
-            m_asBgm.clip = CreateProceduralBgmClip();
+            m_clipProceduralBgm = CreateProceduralBgmClip();
+            m_asBgm.clip = m_clipProceduralBgm;
         }
 
         if (!m_asBgm.isPlaying)
@@ -928,7 +984,8 @@ public class GUIManager : MonoBehaviour
 
         if (m_asUiClick.clip == null)
         {
-            m_asUiClick.clip = CreateProceduralClickClip();
+            m_clipProceduralClick = CreateProceduralClickClip();
+            m_asUiClick.clip = m_clipProceduralClick;
         }
     }
 

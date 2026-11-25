@@ -69,6 +69,10 @@ public class MouseLookScript : MonoBehaviour
     public GameObject m_objWeapon;
 
     private float m_fDeltaTime = 0.0f;
+    private float m_fFpsTextUpdateTimer = 0.0f;
+    private string m_strCachedFpsText = "0.0 ms (0 fps)";
+    private GUIStyle m_styleFpsLabel;
+    private int m_nLastFpsScreenHeight = -1;
 
     [Tooltip("Shows FPS in top left corner.")]
     [FormerlySerializedAs("showFps")]
@@ -121,6 +125,18 @@ public class MouseLookScript : MonoBehaviour
         UpdateMouseInput();
 
         m_fDeltaTime += (Time.deltaTime - m_fDeltaTime) * 0.1f;
+
+        if (m_bShowFps)
+        {
+            m_fFpsTextUpdateTimer -= Time.unscaledDeltaTime;
+            if (m_fFpsTextUpdateTimer <= 0f)
+            {
+                m_fFpsTextUpdateTimer = 0.2f;
+                float fMsec = m_fDeltaTime * 1000.0f;
+                float fFps = 1.0f / Mathf.Max(0.0001f, m_fDeltaTime);
+                m_strCachedFpsText = string.Format("{0:0.0} ms ({1:0.} fps)", fMsec, fFps);
+            }
+        }
 
         if (m_cPlayerMovement && m_cPlayerMovement.CurrentSpeed > 1f)
             UpdateHeadBob();
@@ -186,21 +202,28 @@ public class MouseLookScript : MonoBehaviour
             DrawFpsCounter();
         }
     }
-
+    string strText;
     private void DrawFpsCounter()
     {
+        if (Event.current.type != EventType.Repaint) return;
+
         int nWidth = Screen.width;
         int nHeight = Screen.height;
 
-        GUIStyle styleLabel = new GUIStyle();
-        Rect rectArea = new Rect(0f, 0f, nWidth, nHeight * 2f / 100f);
-        styleLabel.alignment = TextAnchor.UpperLeft;
-        styleLabel.fontSize = nHeight * 2 / 100;
-        styleLabel.normal.textColor = Color.white;
+        if (m_styleFpsLabel == null)
+        {
+            m_styleFpsLabel = new GUIStyle();
+            m_styleFpsLabel.alignment = TextAnchor.UpperLeft;
+            m_styleFpsLabel.normal.textColor = Color.white;
+        }
 
-        float fMsec = m_fDeltaTime * 1000.0f;
-        float fFps = 1.0f / Mathf.Max(0.0001f, m_fDeltaTime);
-        string strText = string.Format("{0:0.0} ms ({1:0.} fps)", fMsec, fFps);
-        GUI.Label(rectArea, strText, styleLabel);
+        if (m_nLastFpsScreenHeight != nHeight)
+        {
+            m_nLastFpsScreenHeight = nHeight;
+            m_styleFpsLabel.fontSize = nHeight * 2 / 100;
+        }
+
+        Rect rectArea = new Rect(0f, 0f, nWidth, nHeight * 2f / 100f);
+        GUI.Label(rectArea, m_strCachedFpsText, m_styleFpsLabel);
     }
 }

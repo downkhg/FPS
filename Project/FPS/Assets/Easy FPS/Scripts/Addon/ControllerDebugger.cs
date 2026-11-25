@@ -18,6 +18,12 @@ public class ControllerDebugger : MonoBehaviour
     [FormerlySerializedAs("aiController")]
     public AIController m_cAiController;
 
+    private Player m_cPlayer;
+    private Player m_cAiNpc;
+    private float m_fSearchTimer = 0f;
+    private const float SEARCH_INTERVAL = 1.0f;
+
+    private Texture2D m_texDarkBg;
     private GUIStyle m_cBoxStyle;
     private GUIStyle m_cHeaderStyle;
     private GUIStyle m_cLabelStyle;
@@ -27,6 +33,15 @@ public class ControllerDebugger : MonoBehaviour
     void Start()
     {
         FindControllers();
+    }
+
+    private void OnDestroy()
+    {
+        if (m_texDarkBg != null)
+        {
+            Destroy(m_texDarkBg);
+            m_texDarkBg = null;
+        }
     }
 
     void Update()
@@ -46,20 +61,39 @@ public class ControllerDebugger : MonoBehaviour
             }
         }
 
-        // 레퍼런스가 누락되었으면 재탐색
+        // 레퍼런스가 누락되었으면 주기적으로만 재탐색 (매 프레임 씬 전수 탐색 방지)
         if (m_cPlayerController == null || m_cAiController == null)
         {
-            FindControllers();
+            m_fSearchTimer -= Time.unscaledDeltaTime;
+            if (m_fSearchTimer <= 0f)
+            {
+                m_fSearchTimer = SEARCH_INTERVAL;
+                FindControllers();
+            }
         }
     }
 
     private void FindControllers()
     {
         if (m_cPlayerController == null)
+        {
             m_cPlayerController = FindFirstObjectByType<PlayerController>();
+            m_cPlayer = m_cPlayerController != null ? m_cPlayerController.GetComponent<Player>() : null;
+        }
+        else if (m_cPlayer == null)
+        {
+            m_cPlayer = m_cPlayerController.GetComponent<Player>();
+        }
 
         if (m_cAiController == null)
+        {
             m_cAiController = FindFirstObjectByType<AIController>();
+            m_cAiNpc = m_cAiController != null ? m_cAiController.GetComponent<Player>() : null;
+        }
+        else if (m_cAiNpc == null)
+        {
+            m_cAiNpc = m_cAiController.GetComponent<Player>();
+        }
     }
 
     private void InitStyles()
@@ -68,10 +102,10 @@ public class ControllerDebugger : MonoBehaviour
 
         // 반투명 검정 배경 박스
         m_cBoxStyle = new GUIStyle(GUI.skin.box);
-        Texture2D texDarkBg = new Texture2D(1, 1);
-        texDarkBg.SetPixel(0, 0, new Color(0.08f, 0.08f, 0.1f, 0.85f));
-        texDarkBg.Apply();
-        m_cBoxStyle.normal.background = texDarkBg;
+        m_texDarkBg = new Texture2D(1, 1);
+        m_texDarkBg.SetPixel(0, 0, new Color(0.08f, 0.08f, 0.1f, 0.85f));
+        m_texDarkBg.Apply();
+        m_cBoxStyle.normal.background = m_texDarkBg;
 
         m_cHeaderStyle = new GUIStyle(GUI.skin.label);
         m_cHeaderStyle.fontSize = 14;
@@ -117,7 +151,7 @@ public class ControllerDebugger : MonoBehaviour
 
         if (m_cPlayerController != null)
         {
-            Player cPlayer = m_cPlayerController.GetComponent<Player>();
+            Player cPlayer = m_cPlayer;
             PlayerMovementScript cPms = cPlayer != null ? cPlayer.PmS : null;
             GunScript cGun = cPlayer != null ? cPlayer.Gun : null;
 
@@ -191,7 +225,7 @@ public class ControllerDebugger : MonoBehaviour
 
         if (m_cAiController != null)
         {
-            Player cNpc = m_cAiController.GetComponent<Player>();
+            Player cNpc = m_cAiNpc;
             GunScript cGun = cNpc != null ? cNpc.Gun : null;
 
             // 상태
