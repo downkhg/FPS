@@ -102,6 +102,7 @@ public class GunScript : MonoBehaviour
     [HideInInspector]
     [FormerlySerializedAs("meeleAttack")]
     public bool m_bIsMeleeAttack;
+    private bool m_bMeleeCoroutineRunning = false;
 
     [HideInInspector]
     [FormerlySerializedAs("aiming")]
@@ -255,6 +256,7 @@ public class GunScript : MonoBehaviour
         StopAllCoroutines();
         m_bReloadCoroutineRunning = false;
         m_bIsReloading = false;
+        m_bMeleeCoroutineRunning = false;
         m_bIsMeleeAttack = false;
         m_bIsAiming = false;
         m_bIsAimingControlled = false;
@@ -267,6 +269,7 @@ public class GunScript : MonoBehaviour
         if (m_animHands != null)
         {
             m_animHands.SetBool("reloading", false);
+            m_animHands.SetBool("meeleAttack", false);
         }
     }
 
@@ -398,7 +401,7 @@ public class GunScript : MonoBehaviour
 
     public void TriggerMelee()
     {
-        if (!m_bIsMeleeAttack)
+        if (!m_bIsMeleeAttack && !m_bMeleeCoroutineRunning)
         {
             StartCoroutine(MeleeAttackAnimationCoroutine());
         }
@@ -444,18 +447,40 @@ public class GunScript : MonoBehaviour
         if (m_animHands)
         {
             AnimatorStateInfo stateInfo = m_animHands.GetCurrentAnimatorStateInfo(0);
-            m_bIsMeleeAttack = stateInfo.IsName(m_strMeleeAnimationName);
+            m_bIsMeleeAttack = m_bMeleeCoroutineRunning || stateInfo.IsName(m_strMeleeAnimationName);
             m_bIsAiming = stateInfo.IsName(m_strAimingAnimationName);
+        }
+        else
+        {
+            m_bIsMeleeAttack = m_bMeleeCoroutineRunning;
         }
     }
 
     private IEnumerator MeleeAttackAnimationCoroutine()
     {
-        if (m_animHands)
+        m_bMeleeCoroutineRunning = true;
+        m_bIsMeleeAttack = true;
+
+        try
         {
-            m_animHands.SetBool("meeleAttack", true);
-            yield return new WaitForSeconds(0.1f);
-            m_animHands.SetBool("meeleAttack", false);
+            if (m_animHands)
+            {
+                m_animHands.SetBool("meeleAttack", true);
+                yield return new WaitForSeconds(0.1f);
+                m_animHands.SetBool("meeleAttack", false);
+            }
+            else
+            {
+                yield return new WaitForSeconds(0.1f);
+            }
+        }
+        finally
+        {
+            m_bMeleeCoroutineRunning = false;
+            if (m_animHands)
+            {
+                m_animHands.SetBool("meeleAttack", false);
+            }
         }
     }
 

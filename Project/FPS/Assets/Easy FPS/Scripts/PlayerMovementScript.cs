@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Serialization;
 using System.Collections;
@@ -59,6 +60,7 @@ public class PlayerMovementScript : MonoBehaviour
 
     [Header("Shooting Properties")]
     private LayerMask m_maskIgnoreLayer;
+    private LayerMask m_maskMeleeIgnoreLayer;
     private float m_fRayDetectorMeleeSpace = 0.15f;
     private float m_fOffsetStart = 0.05f;
 
@@ -115,6 +117,8 @@ public class PlayerMovementScript : MonoBehaviour
         m_rbBody = GetComponent<Rigidbody>();
         m_cPlayer = GetComponent<Player>();
         m_maskIgnoreLayer = 1 << LayerMask.NameToLayer("Player");
+        int nWeaponLayer = LayerMask.NameToLayer("Weapon");
+        m_maskMeleeIgnoreLayer = nWeaponLayer >= 0 ? (1 << nWeaponLayer) : 0;
 
         if (!m_trBulletSpawn)
         {
@@ -130,6 +134,8 @@ public class PlayerMovementScript : MonoBehaviour
         m_cPlayer = GetComponent<Player>();
         if (_trBulletSpawn) m_trBulletSpawn = _trBulletSpawn;
         m_maskIgnoreLayer = 1 << LayerMask.NameToLayer("Player");
+        int nWeaponLayer = LayerMask.NameToLayer("Weapon");
+        m_maskMeleeIgnoreLayer = nWeaponLayer >= 0 ? (1 << nWeaponLayer) : 0;
     }
 
     void FixedUpdate()
@@ -319,7 +325,7 @@ public class PlayerMovementScript : MonoBehaviour
     {
         foreach (ContactPoint sContact in _cOther.contacts)
         {
-            if (Vector2.Angle(sContact.normal, Vector3.up) < 60f)
+            if (Vector3.Angle(sContact.normal, Vector3.up) < 60f)
             {
                 m_bCollisionGrounded = true;
                 m_bIsGrounded = true;
@@ -378,20 +384,54 @@ public class PlayerMovementScript : MonoBehaviour
             new Ray(vOrigin - (vUp * m_fOffsetStart), vForward - (vUp * m_fRayDetectorMeleeSpace))
         };
 
-        RaycastHit sHitInfo;
+        string strMyTag = gameObject.tag;
         for (int i = 0; i < arrRays.Length; i++)
         {
-            if (Physics.Raycast(arrRays[i], out sHitInfo, 2f, ~m_maskIgnoreLayer))
+            RaycastHit[] arrHits = Physics.RaycastAll(arrRays[i], 2f, ~m_maskMeleeIgnoreLayer);
+            if (arrHits == null || arrHits.Length == 0) continue;
+
+            Array.Sort(arrHits, (a, b) => a.distance.CompareTo(b.distance));
+
+            for (int j = 0; j < arrHits.Length; j++)
             {
-                if (sHitInfo.transform.CompareTag("Dummie") || sHitInfo.transform.CompareTag("Player"))
+                RaycastHit sHitInfo = arrHits[j];
+                if (sHitInfo.transform == null) continue;
+
+                // 본인 콜라이더는 통과
+                if (sHitInfo.transform == transform || sHitInfo.transform.IsChildOf(transform))
                 {
-                    Player cHitPlayer = sHitInfo.transform.GetComponentInParent<Player>();
-                    if (cHitPlayer != null && cHitPlayer != m_cPlayer)
+                    continue;
+                }
+
+                // 벽에 막히면 해당 레이 종료
+                if (sHitInfo.transform.CompareTag("LevelPart"))
+                {
+                    break;
+                }
+
+                Player cHitPlayer = sHitInfo.transform.GetComponentInParent<Player>();
+                string strTargetTag = cHitPlayer != null ? cHitPlayer.tag : sHitInfo.transform.tag;
+
+                if (cHitPlayer != null || BulletScript.IsCombatUnitTag(strTargetTag))
+                {
+                    if (cHitPlayer != null && cHitPlayer == m_cPlayer)
                     {
-                        cHitPlayer.TakeDamage(35f);
-                        InstantiateBlood(sHitInfo, _cGun);
+                        continue;
+                    }
+
+                    // 아군 오사 방지 (피아식별)
+                    if (BulletScript.IsCombatUnitTag(strMyTag) && !BulletScript.IsHostileTag(strMyTag, strTargetTag))
+                    {
                         break;
                     }
+
+                    if (cHitPlayer != null)
+                    {
+                        cHitPlayer.TakeDamage(35f);
+                    }
+                    InstantiateBlood(sHitInfo, _cGun);
+                    yield return new WaitForEndOfFrame();
+                    yield break;
                 }
             }
         }

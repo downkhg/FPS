@@ -251,8 +251,8 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateMelee()
     {
-        // 근접 공격 애니메이션이 끝나면 대기로 복귀
-        if (m_cPlayer.Gun != null && !m_cPlayer.Gun.IsMeleeAttack)
+        // 근접 공격 애니메이션이 끝나거나 무기가 없으면 대기로 복귀
+        if (m_cPlayer.Gun == null || !m_cPlayer.Gun.IsMeleeAttack)
         {
             SetState(PlayerState.Idle);
         }

@@ -20,7 +20,7 @@ public class BulletScript : MonoBehaviour
     [FormerlySerializedAs("bloodEffect")]
     public GameObject m_prefabBloodEffect;
 
-    [Tooltip("Put Weapon layer and Player layer to ignore bullet raycast.")]
+    [Tooltip("Put Weapon layer to ignore bullet raycast (shooter self-hit is ignored by Transform).")]
     [FormerlySerializedAs("ignoreLayer")]
     public LayerMask m_maskIgnoreLayer;
 

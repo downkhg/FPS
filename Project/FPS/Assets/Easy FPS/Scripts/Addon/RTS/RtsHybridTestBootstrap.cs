@@ -86,11 +86,7 @@ public class RtsHybridTestBootstrap : MonoBehaviour
 
         if (cTemplateNpc == null) return;
 
-        // 기존 NPC를 적군 1호로 마킹 (빨간색, Enemy 태그)
-        ConfigureNpcUnit(cTemplateNpc, false, "Enemy_Unit_1", "Enemy", "Player", "Ally");
-        AttachRoleMarker(cTemplateNpc.transform, new Color(1f, 0.25f, 0.25f, 1f), "EnemyMarker");
-
-        // 1. 아군 분대 NPC 스폰 (PC 주변에 배치, Ally 태그 -> Enemy/Dummie만 공격하고 Player/Ally는 공격 금지)
+        // 1. 아군 분대 NPC 스폰 (템플릿에 EnemyMarker를 붙이기 전에 복제하여 마커 중복 방지)
         Vector3 vPcOrigin = cPc != null ? cPc.transform.position : Vector3.zero;
         for (int i = 0; i < m_nAllySquadCount; i++)
         {
@@ -112,6 +108,10 @@ public class RtsHybridTestBootstrap : MonoBehaviour
             ConfigureNpcUnit(cEnemy, false, $"Enemy_Unit_{i + 2}", "Enemy", "Player", "Ally");
             AttachRoleMarker(cEnemy.transform, new Color(1f, 0.25f, 0.25f, 1f), "EnemyMarker");
         }
+
+        // 3. 원본 템플릿 NPC를 적군 1호로 마킹 (복제 완료 후 마커 부착)
+        ConfigureNpcUnit(cTemplateNpc, false, "Enemy_Unit_1", "Enemy", "Player", "Ally");
+        AttachRoleMarker(cTemplateNpc.transform, new Color(1f, 0.25f, 0.25f, 1f), "EnemyMarker");
     }
 
     private void ConfigureNpcUnit(Player _cNpc, bool _bIsAlly, string _strName, string _strTag, string _strPrimaryTargetTag, string _strSecondaryTargetTag)
